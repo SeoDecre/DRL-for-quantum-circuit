@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1128" height="1552" font-family="monospace" font-size="12">
+<rect width="1128" height="1552" fill="#fafafa"/>
+<text x="564" y="22" font-size="16" font-weight="bold" fill="#1a237e" text-anchor="middle">Agent vs Oracle — All 90 Problems  (MAE: 3389 shots, 16.95%)</text>
+<text x="16" y="45" font-size="14" font-weight="bold" fill="#2e7d32">EASY [72]  avg MAE=2972</text>
+<text x="572" y="45" font-size="14" font-weight="bold" fill="#c62828">HARD [18]  avg MAE=5058</text>
+<text x="16" y="62" font-size="11" fill="#666">Algorithm    q  Backend             Oracle   Agent        Δ</text>
+<text x="572" y="62" font-size="11" fill="#666">Algorithm    q  Backend             Oracle   Agent        Δ</text>
+<line x1="0" y1="68" x2="1128" y2="68" stroke="#bbb"/>
+<text x="16" y="80" fill="#333">      dj    4  fake_fez                50      50  <tspan fill="#2e7d32" font-weight="bold">     +0</tspan></text>
+<text x="16" y="100" fill="#333">      dj    4  fake_kyiv               50      50  <tspan fill="#2e7d32" font-weight="bold">     +0</tspan></text>
+<text x="16" y="120" fill="#333">      dj    4  fake_marrakesh         100     100  <tspan fill="#2e7d32" font-weight="bold">     +0</tspan></text>
+<text x="16" y="140" fill="#333">      dj    6  fake_fez               250     750  <tspan fill="#c62828" font-weight="bold">   +500</tspan></text>
+<text x="16" y="160" fill="#333">      dj    6  fake_kyiv              250     750  <tspan fill="#c62828" font-weight="bold">   +500</tspan></text>
+<text x="16" y="180" fill="#333">      dj    6  fake_marrakesh          50     500  <tspan fill="#c62828" font-weight="bold">   +450</tspan></text>
+<text x="16" y="200" fill="#333">      dj    6  fake_sherbrooke        200     450  <tspan fill="#c62828" font-weight="bold">   +250</tspan></text>
+<text x="16" y="220" fill="#333">      dj    6  fake_torino            200    1400  <tspan fill="#c62828" font-weight="bold">  +1200</tspan></text>
+<text x="16" y="240" fill="#333">      dj    8  fake_fez               300    1200  <tspan fill="#c62828" font-weight="bold">   +900</tspan></text>
+<text x="16" y="260" fill="#333">      dj    8  fake_marrakesh         150     500  <tspan fill="#c62828" font-weight="bold">   +350</tspan></text>
+<text x="16" y="280" fill="#333">    qaoa    4  fake_fez               150     950  <tspan fill="#c62828" font-weight="bold">   +800</tspan></text>
+<text x="16" y="300" fill="#333">    qaoa    4  fake_kyiv              200    1050  <tspan fill="#c62828" font-weight="bold">   +850</tspan></text>
+<text x="16" y="320" fill="#333">    qaoa    4  fake_sherbrooke        400    1100  <tspan fill="#c62828" font-weight="bold">   +700</tspan></text>
+<text x="16" y="340" fill="#333">    qaoa    4  fake_torino            250    1600  <tspan fill="#c62828" font-weight="bold">  +1350</tspan></text>
+<text x="16" y="360" fill="#333">    qaoa    6  fake_fez              1950    2350  <tspan fill="#e65100" font-weight="bold">   +400</tspan></text>
+<text x="16" y="380" fill="#333">    qaoa    6  fake_kyiv             1850    3100  <tspan fill="#c62828" font-weight="bold">  +1250</tspan></text>
+<text x="16" y="400" fill="#333">    qaoa    6  fake_marrakesh        1950    4750  <tspan fill="#c62828" font-weight="bold">  +2800</tspan></text>
+<text x="16" y="420" fill="#333">    qaoa    6  fake_sherbrooke       4450   15300  <tspan fill="#c62828" font-weight="bold"> +10850</tspan></text>
+<text x="16" y="440" fill="#333">    qaoa    6  fake_torino           2250   20000  <tspan fill="#c62828" font-weight="bold"> +17750</tspan></text>
+<text x="16" y="460" fill="#333">    qaoa    8  fake_fez              3800    3500  <tspan fill="#2e7d32" font-weight="bold">   -300</tspan></text>
+<text x="16" y="480" fill="#333">    qaoa    8  fake_kyiv             6050    4200  <tspan fill="#c62828" font-weight="bold">  -1850</tspan></text>
+<text x="16" y="500" fill="#333">     qft    4  fake_fez              1050    1600  <tspan fill="#c62828" font-weight="bold">   +550</tspan></text>
+<text x="16" y="520" fill="#333">     qft    4  fake_kyiv             1050    1900  <tspan fill="#c62828" font-weight="bold">   +850</tspan></text>
+<text x="16" y="540" fill="#333">     qft    4  fake_marrakesh        1550    2250  <tspan fill="#c62828" font-weight="bold">   +700</tspan></text>
+<text x="16" y="560" fill="#333">     qft    4  fake_sherbrooke        700    8300  <tspan fill="#c62828" font-weight="bold">  +7600</tspan></text>
+<text x="16" y="580" fill="#333">     qft    4  fake_torino           1150   18100  <tspan fill="#c62828" font-weight="bold"> +16950</tspan></text>
+<text x="16" y="600" fill="#333">     qft    6  fake_fez              3900    2600  <tspan fill="#c62828" font-weight="bold">  -1300</tspan></text>
+<text x="16" y="620" fill="#333">     qft    6  fake_kyiv             4600    3050  <tspan fill="#c62828" font-weight="bold">  -1550</tspan></text>
+<text x="16" y="640" fill="#333">     qft    6  fake_marrakesh        2750    3200  <tspan fill="#e65100" font-weight="bold">   +450</tspan></text>
+<text x="16" y="660" fill="#333">     qft    6  fake_sherbrooke       3700   11650  <tspan fill="#c62828" font-weight="bold">  +7950</tspan></text>
+<text x="16" y="680" fill="#333">     qft    8  fake_fez              9000    3750  <tspan fill="#c62828" font-weight="bold">  -5250</tspan></text>
+<text x="16" y="700" fill="#333">     qft    8  fake_kyiv            10150    5050  <tspan fill="#c62828" font-weight="bold">  -5100</tspan></text>
+<text x="16" y="720" fill="#333">     qft    8  fake_marrakesh        8100    9950  <tspan fill="#e65100" font-weight="bold">  +1850</tspan></text>
+<text x="16" y="740" fill="#333">     qft    8  fake_sherbrooke       9950   18300  <tspan fill="#c62828" font-weight="bold">  +8350</tspan></text>
+<text x="16" y="760" fill="#333">     qft    8  fake_torino           9050   18450  <tspan fill="#c62828" font-weight="bold">  +9400</tspan></text>
+<text x="16" y="780" fill="#333">     qnn    4  fake_fez              1350    1300  <tspan fill="#2e7d32" font-weight="bold">    -50</tspan></text>
+<text x="16" y="800" fill="#333">     qnn    4  fake_marrakesh         650    1600  <tspan fill="#c62828" font-weight="bold">   +950</tspan></text>
+<text x="16" y="820" fill="#333">     qnn    4  fake_sherbrooke        900    2350  <tspan fill="#c62828" font-weight="bold">  +1450</tspan></text>
+<text x="16" y="840" fill="#333">     qnn    4  fake_torino            350    7000  <tspan fill="#c62828" font-weight="bold">  +6650</tspan></text>
+<text x="16" y="860" fill="#333">     qnn    6  fake_kyiv             3400    2800  <tspan fill="#e65100" font-weight="bold">   -600</tspan></text>
+<text x="16" y="880" fill="#333">     qnn    6  fake_marrakesh        2350    3250  <tspan fill="#c62828" font-weight="bold">   +900</tspan></text>
+<text x="16" y="900" fill="#333">     qnn    6  fake_sherbrooke       2300    7200  <tspan fill="#c62828" font-weight="bold">  +4900</tspan></text>
+<text x="16" y="920" fill="#333">     qnn    6  fake_torino           2400   19750  <tspan fill="#c62828" font-weight="bold"> +17350</tspan></text>
+<text x="16" y="940" fill="#333">     qnn    8  fake_fez              7500    3200  <tspan fill="#c62828" font-weight="bold">  -4300</tspan></text>
+<text x="16" y="960" fill="#333">     qnn    8  fake_kyiv             9250    4000  <tspan fill="#c62828" font-weight="bold">  -5250</tspan></text>
+<text x="16" y="980" fill="#333">     qnn    8  fake_marrakesh        7850    4400  <tspan fill="#c62828" font-weight="bold">  -3450</tspan></text>
+<text x="16" y="1000" fill="#333">     qnn    8  fake_sherbrooke       8000   13000  <tspan fill="#c62828" font-weight="bold">  +5000</tspan></text>
+<text x="16" y="1020" fill="#333">     qnn    8  fake_torino           8250   19800  <tspan fill="#c62828" font-weight="bold"> +11550</tspan></text>
+<text x="16" y="1040" fill="#333">  random    4  fake_fez               350     650  <tspan fill="#c62828" font-weight="bold">   +300</tspan></text>
+<text x="16" y="1060" fill="#333">  random    4  fake_kyiv             1200    1150  <tspan fill="#2e7d32" font-weight="bold">    -50</tspan></text>
+<text x="16" y="1080" fill="#333">  random    4  fake_marrakesh         250     900  <tspan fill="#c62828" font-weight="bold">   +650</tspan></text>
+<text x="16" y="1100" fill="#333">  random    4  fake_sherbrooke       1000    1950  <tspan fill="#c62828" font-weight="bold">   +950</tspan></text>
+<text x="16" y="1120" fill="#333">  random    6  fake_fez              2400    2250  <tspan fill="#2e7d32" font-weight="bold">   -150</tspan></text>
+<text x="16" y="1140" fill="#333">  random    6  fake_kyiv             3600    2600  <tspan fill="#c62828" font-weight="bold">  -1000</tspan></text>
+<text x="16" y="1160" fill="#333">  random    6  fake_marrakesh        2250    2900  <tspan fill="#c62828" font-weight="bold">   +650</tspan></text>
+<text x="16" y="1180" fill="#333">  random    6  fake_sherbrooke       3150    3700  <tspan fill="#e65100" font-weight="bold">   +550</tspan></text>
+<text x="16" y="1200" fill="#333">  random    8  fake_fez              7850    3300  <tspan fill="#c62828" font-weight="bold">  -4550</tspan></text>
+<text x="16" y="1220" fill="#333">  random    8  fake_kyiv             8600    3800  <tspan fill="#c62828" font-weight="bold">  -4800</tspan></text>
+<text x="16" y="1240" fill="#333">  random    8  fake_marrakesh        6550    3950  <tspan fill="#c62828" font-weight="bold">  -2600</tspan></text>
+<text x="16" y="1260" fill="#333">  random    8  fake_sherbrooke       9350   12500  <tspan fill="#c62828" font-weight="bold">  +3150</tspan></text>
+<text x="16" y="1280" fill="#333">  random    8  fake_torino           7350   20000  <tspan fill="#c62828" font-weight="bold"> +12650</tspan></text>
+<text x="16" y="1300" fill="#333">     vqe    4  fake_kyiv              100     100  <tspan fill="#2e7d32" font-weight="bold">     +0</tspan></text>
+<text x="16" y="1320" fill="#333">     vqe    4  fake_marrakesh          50     100  <tspan fill="#c62828" font-weight="bold">    +50</tspan></text>
+<text x="16" y="1340" fill="#333">     vqe    4  fake_sherbrooke         50     100  <tspan fill="#c62828" font-weight="bold">    +50</tspan></text>
+<text x="16" y="1360" fill="#333">     vqe    4  fake_torino            100     300  <tspan fill="#c62828" font-weight="bold">   +200</tspan></text>
+<text x="16" y="1380" fill="#333">     vqe    6  fake_marrakesh          50     100  <tspan fill="#c62828" font-weight="bold">    +50</tspan></text>
+<text x="16" y="1400" fill="#333">     vqe    6  fake_sherbrooke        300    1200  <tspan fill="#c62828" font-weight="bold">   +900</tspan></text>
+<text x="16" y="1420" fill="#333">     vqe    6  fake_torino            100    1600  <tspan fill="#c62828" font-weight="bold">  +1500</tspan></text>
+<text x="16" y="1440" fill="#333">     vqe    8  fake_fez               700     950  <tspan fill="#c62828" font-weight="bold">   +250</tspan></text>
+<text x="16" y="1460" fill="#333">     vqe    8  fake_kyiv             1150    1500  <tspan fill="#c62828" font-weight="bold">   +350</tspan></text>
+<text x="16" y="1480" fill="#333">     vqe    8  fake_sherbrooke        950    3300  <tspan fill="#c62828" font-weight="bold">  +2350</tspan></text>
+<text x="16" y="1500" fill="#333">     vqe    8  fake_torino            650    3600  <tspan fill="#c62828" font-weight="bold">  +2950</tspan></text>
+<text x="572" y="80" fill="#333">      dj   10  fake_kyiv             1250    3650  <tspan fill="#c62828" font-weight="bold">  +2400</tspan></text>
+<text x="572" y="100" fill="#333">      dj   10  fake_marrakesh         500    1400  <tspan fill="#c62828" font-weight="bold">   +900</tspan></text>
+<text x="572" y="120" fill="#333">      dj   14  fake_marrakesh        1300    6250  <tspan fill="#c62828" font-weight="bold">  +4950</tspan></text>
+<text x="572" y="140" fill="#333">      dj   14  fake_sherbrooke       3350   20000  <tspan fill="#c62828" font-weight="bold"> +16650</tspan></text>
+<text x="572" y="160" fill="#333">    qaoa   10  fake_fez             10100    4750  <tspan fill="#c62828" font-weight="bold">  -5350</tspan></text>
+<text x="572" y="180" fill="#333">    qaoa   12  fake_marrakesh       13550   17750  <tspan fill="#c62828" font-weight="bold">  +4200</tspan></text>
+<text x="572" y="200" fill="#333">    qaoa   12  fake_sherbrooke      15150   20000  <tspan fill="#c62828" font-weight="bold">  +4850</tspan></text>
+<text x="572" y="220" fill="#333">    qaoa   14  fake_fez             14300    6500  <tspan fill="#c62828" font-weight="bold">  -7800</tspan></text>
+<text x="572" y="240" fill="#333">     qft   12  fake_marrakesh       18450   17450  <tspan fill="#2e7d32" font-weight="bold">  -1000</tspan></text>
+<text x="572" y="260" fill="#333">     qft   12  fake_sherbrooke      18500   20000  <tspan fill="#2e7d32" font-weight="bold">  +1500</tspan></text>
+<text x="572" y="280" fill="#333">     qnn   12  fake_kyiv            18400    7150  <tspan fill="#c62828" font-weight="bold"> -11250</tspan></text>
+<text x="572" y="300" fill="#333">     qnn   12  fake_torino          18300   20000  <tspan fill="#2e7d32" font-weight="bold">  +1700</tspan></text>
+<text x="572" y="320" fill="#333">     qnn   14  fake_marrakesh       18800   16850  <tspan fill="#e65100" font-weight="bold">  -1950</tspan></text>
+<text x="572" y="340" fill="#333">     qnn   14  fake_torino          18900   20000  <tspan fill="#2e7d32" font-weight="bold">  +1100</tspan></text>
+<text x="572" y="360" fill="#333">  random   10  fake_kyiv            15100    5550  <tspan fill="#c62828" font-weight="bold">  -9550</tspan></text>
+<text x="572" y="380" fill="#333">  random   12  fake_kyiv            18450    5900  <tspan fill="#c62828" font-weight="bold"> -12550</tspan></text>
+<text x="572" y="400" fill="#333">  random   12  fake_torino          18450   20000  <tspan fill="#2e7d32" font-weight="bold">  +1550</tspan></text>
+<text x="572" y="420" fill="#333">     vqe   14  fake_marrakesh        2600    4400  <tspan fill="#c62828" font-weight="bold">  +1800</tspan></text>
+</svg>
