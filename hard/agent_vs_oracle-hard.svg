@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1128" height="532" font-family="monospace" font-size="12">
 <rect width="1128" height="532" fill="#fafafa"/>
-<text x="564" y="18" font-size="12" fill="#37474f" text-anchor="middle">Agent: HARD  |  Reward: ASYMMETRIC  |  Split: ORACLE (oracle &lt;= 5000)</text>
+<text x="564" y="18" font-size="12" fill="#37474f" text-anchor="middle">Agent: HARD  |  Reward: MAE  |  Split: ORACLE (oracle &lt;= 5000)</text>
 <text x="564" y="38" font-size="16" font-weight="bold" fill="#1a237e" text-anchor="middle">Agent vs Oracle — 36 Problems  (MAE: 11769 shots, 58.85%)</text>
 <text x="16" y="62" font-size="14" font-weight="bold" fill="#2e7d32">EASY [16]  avg MAE=18594</text>
 <text x="572" y="62" font-size="14" font-weight="bold" fill="#c62828">HARD [20]  avg MAE=6310</text>
