@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="888" height="508" font-family="monospace" font-size="13">
 <rect width="888" height="508" fill="#fafafa"/>
-<text x="444" y="20" font-size="14" fill="#37474f" text-anchor="middle">Agent: GENERIC  |  Reward: ASYMMETRIC  |  Split: SIZE (size &lt; 10)</text>
+<text x="444" y="20" font-size="14" fill="#37474f" text-anchor="middle">Agent: EASY  |  Reward: ASYMMETRIC  |  Split: SIZE (size &lt; 10)</text>
 <line x1="16" y1="28" x2="872" y2="28" stroke="#ccc"/>
 <text x="16" y="50" font-size="16" font-weight="bold" fill="#2e7d32">EASY (size &lt; 10)  [18 problems]</text>
 <text x="452" y="50" font-size="16" font-weight="bold" fill="#c62828">HARD (size &gt;= 10)  [18 problems]</text>
