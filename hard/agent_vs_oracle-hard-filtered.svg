@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1128" height="492" font-family="monospace" font-size="12">
+<rect width="1128" height="492" fill="#fafafa"/>
+<text x="564" y="18" font-size="12" fill="#37474f" text-anchor="middle">Agent: HARD  |  Reward: ASYMMETRIC  |  Split: SIZE (size &lt; 10)</text>
+<text x="564" y="38" font-size="16" font-weight="bold" fill="#1a237e" text-anchor="middle">Agent vs Oracle — 18 Problems  (MAE: 4700 shots, 23.50%)</text>
+<text x="16" y="62" font-size="14" font-weight="bold" fill="#2e7d32">EASY [0]  avg MAE=0</text>
+<text x="572" y="62" font-size="14" font-weight="bold" fill="#c62828">HARD [18]  avg MAE=4700</text>
+<text x="16" y="79" font-size="11" fill="#666">Algorithm    q  Backend             Oracle   Agent        Δ</text>
+<text x="572" y="79" font-size="11" fill="#666">Algorithm    q  Backend             Oracle   Agent        Δ</text>
+<line x1="0" y1="85" x2="1128" y2="85" stroke="#bbb"/>
+<text x="572" y="100" fill="#333">      dj   10  fake_fez               100   20000  <tspan fill="#c62828" font-weight="bold"> +19900</tspan></text>
+<text x="572" y="120" fill="#333">      dj   10  fake_torino            500    2900  <tspan fill="#c62828" font-weight="bold">  +2400</tspan></text>
+<text x="572" y="140" fill="#333">      dj   14  fake_fez               500    3200  <tspan fill="#c62828" font-weight="bold">  +2700</tspan></text>
+<text x="572" y="160" fill="#333">      dj   14  fake_marrakesh         600    3600  <tspan fill="#c62828" font-weight="bold">  +3000</tspan></text>
+<text x="572" y="180" fill="#333">    qaoa   10  fake_sherbrooke       6550   16150  <tspan fill="#c62828" font-weight="bold">  +9600</tspan></text>
+<text x="572" y="200" fill="#333">    qaoa   12  fake_marrakesh        7200    6650  <tspan fill="#2e7d32" font-weight="bold">   -550</tspan></text>
+<text x="572" y="220" fill="#333">    qaoa   14  fake_kyiv            13350   11500  <tspan fill="#e65100" font-weight="bold">  -1850</tspan></text>
+<text x="572" y="240" fill="#333">    qaoa   14  fake_sherbrooke      14350   19300  <tspan fill="#c62828" font-weight="bold">  +4950</tspan></text>
+<text x="572" y="260" fill="#333">     qft   12  fake_fez             15400   20000  <tspan fill="#c62828" font-weight="bold">  +4600</tspan></text>
+<text x="572" y="280" fill="#333">     qft   12  fake_torino          15200   20000  <tspan fill="#c62828" font-weight="bold">  +4800</tspan></text>
+<text x="572" y="300" fill="#333">     qft   14  fake_fez             17750   20000  <tspan fill="#e65100" font-weight="bold">  +2250</tspan></text>
+<text x="572" y="320" fill="#333">     qft   14  fake_torino          17750   20000  <tspan fill="#e65100" font-weight="bold">  +2250</tspan></text>
+<text x="572" y="340" fill="#333">     qnn   14  fake_fez             17600   20000  <tspan fill="#e65100" font-weight="bold">  +2400</tspan></text>
+<text x="572" y="360" fill="#333">     qnn   14  fake_kyiv            17700   14600  <tspan fill="#e65100" font-weight="bold">  -3100</tspan></text>
+<text x="572" y="380" fill="#333">  random   12  fake_fez             15200   10250  <tspan fill="#c62828" font-weight="bold">  -4950</tspan></text>
+<text x="572" y="400" fill="#333">  random   14  fake_fez             17700    7800  <tspan fill="#c62828" font-weight="bold">  -9900</tspan></text>
+<text x="572" y="420" fill="#333">     vqe   12  fake_kyiv              550    3400  <tspan fill="#c62828" font-weight="bold">  +2850</tspan></text>
+<text x="572" y="440" fill="#333">     vqe   14  fake_kyiv             2600    5150  <tspan fill="#c62828" font-weight="bold">  +2550</tspan></text>
+</svg>
