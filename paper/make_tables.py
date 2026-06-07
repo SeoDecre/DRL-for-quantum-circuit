@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""
+Build the LaTeX comparison tables for the QUANTICS paper.
+
+Merges, per quantum-circuit trace (the 36 traces of Bisicchia et al. 2026):
+  * Oracle      : a-posteriori optimal shot count (Alg. 1, delta=0.10)  -> from multirun CSV
+  * DRL (ours)  : mean +/- std shots used by the trained DQN agent      -> from multirun CSV
+  * Inc-TVD/Hell/JS, Weissman, Hoeffding : SOTA values at delta=0.10    -> parsed from tables.tex
+
+Outputs paper/tables_generated.tex which is \\input{} by paper.tex.
+
+Re-run this whenever the multi-run evaluation CSV is refreshed (e.g. after the
+10-run evaluation of the best agent) to update every number in the paper.
+"""
+import csv
+import re
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+TABLES_TEX = os.path.join(ROOT, "pdfs", "tables.tex")
+MULTIRUN_CSV = os.path.join(ROOT, "generic", "multirun_eval-generic.csv")
+OUT = os.path.join(HERE, "tables_generated.tex")
+
+# backend short code (paper tables) -> qsimbench backend name (our CSV)
+SHORT2BACKEND = {
+    "FEZ": "fake_fez", "TOR": "fake_torino", "SHE": "fake_sherbrooke",
+    "MAR": "fake_marrakesh", "KYI": "fake_kyiv",
+}
+BACKEND2SHORT = {v: k for k, v in SHORT2BACKEND.items()}
+
+
+def strip_tex_num(s):
+    """'\\textbf{550}' -> 550 ; '$8.27e+04$' -> 82700.0 ; '2818' -> 2818."""
+    s = s.strip()
+    s = re.sub(r"\\textbf\{([^}]*)\}", r"\1", s)
+    s = s.replace("$", "").strip()
+    if "e+" in s or "e-" in s:
+        return float(s)
+    return float(s)
+
+
+def parse_sota(delta_label="0.10"):
+    """Parse tables.tex; return {(alg, size, short): {tvd,hell,js,weiss,hoeff}}.
+    Uses the delta=0.10 tables (matching our oracle delta=0.1). Values are
+    constant across the 3 trace instances, so first occurrence is kept."""
+    txt = open(TABLES_TEX).read()
+    # isolate the two delta=0.10 tables by their captions
+    out = {}
+    row_re = re.compile(
+        r"^([a-z]+)\\_(\d+)\\_([A-Z]{3})\s*&\s*\d+\s*&\s*[^&]+&\s*"
+        r"([^&]+)&\s*([^&]+)&\s*([^&]+)&\s*([^&]+)&\s*([^\\]+)\\\\",
+    )
+    # only scan inside delta=0.10 captioned tables
+    blocks = re.split(r"\\caption\{", txt)
+    for b in blocks:
+        if "delta = 0.10" not in b and "delta = 0.10," not in b and "= 0.10" not in b:
+            continue
+        for line in b.splitlines():
+            m = row_re.match(line.strip())
+            if not m:
+                continue
+            alg, size, short = m.group(1), int(m.group(2)), m.group(3)
+            key = (alg, size, short)
+            if key in out:
+                continue
+            out[key] = {
+                "tvd":   strip_tex_num(m.group(4)),
+                "hell":  strip_tex_num(m.group(5)),
+                "js":    strip_tex_num(m.group(6)),
+                "weiss": strip_tex_num(m.group(7)),
+                "hoeff": strip_tex_num(m.group(8)),
+            }
+    return out
+
+
+def load_multirun():
+    rows = []
+    with open(MULTIRUN_CSV) as f:
+        for r in csv.DictReader(f):
+            rows.append(r)
+    return rows
+
+
+def fmt(x):
+    """Compact integer-ish formatting; scientific for big values."""
+    if x >= 1e5:
+        return f"${x:.2e}".replace("e+0", "e+").replace("e+", "e{+}") + "$"
+    return f"{x:,.0f}".replace(",", "{,}")
+
+
+def fmt_drl(mean, std):
+    if std == 0:
+        return f"{mean:,.0f}".replace(",", "{,}")
+    return (f"{mean:,.0f}".replace(",", "{,}") + r"\,$\pm$\,"
+            + f"{std:,.0f}".replace(",", "{,}"))
+
+
+def main():
+    sota = parse_sota()
+    rows = load_multirun()
+
+    # attach sota to each row
+    merged = []
+    for r in rows:
+        alg = r["algorithm"]
+        size = int(r["num_qubits"])
+        short = BACKEND2SHORT.get(r["backend"], "???")
+        s = sota.get((alg, size, short))
+        merged.append({
+            "alg": alg, "size": size, "short": short,
+            "trace": f"{alg}\\_{size}\\_{short}",
+            "oracle": float(r["optimal_shots"]),
+            "drl_mean": float(r["shots_mean"]),
+            "drl_std": float(r["shots_std"]),
+            "mae_mean": float(r["mae_mean"]),
+            "mae_std": float(r["mae_std"]),
+            "difficulty": r["difficulty"],
+            "sota": s,
+        })
+
+    merged.sort(key=lambda d: (d["size"], d["alg"]))
+    small = [m for m in merged if m["difficulty"] == "easy"]
+    large = [m for m in merged if m["difficulty"] == "hard"]
+
+    # ---- aggregate error-from-oracle per method ------------------------
+    def agg(method_key):
+        errs = []
+        for m in merged:
+            if m["sota"] is None:
+                continue
+            errs.append(abs(m["sota"][method_key] - m["oracle"]))
+        return sum(errs) / len(errs) if errs else float("nan")
+
+    drl_mae = sum(m["mae_mean"] for m in merged) / len(merged)
+    agg_tvd, agg_hell, agg_js = agg("tvd"), agg("hell"), agg("js")
+    agg_weiss, agg_hoeff = agg("weiss"), agg("hoeff")
+
+    lines = []
+    lines.append("% AUTO-GENERATED by make_tables.py -- do not edit by hand.")
+    lines.append("% Re-run paper/make_tables.py to refresh after a new evaluation.\n")
+
+    # ---- aggregate table -----------------------------------------------
+    lines.append(r"\begin{table}[t]")
+    lines.append(r"\centering")
+    lines.append(r"\caption{Mean absolute deviation from the a-posteriori Oracle "
+                 r"($\delta=0.10$) over the 36 benchmark traces, for the proposed "
+                 r"DRL agent and the five reference methods. Lower is better.}")
+    lines.append(r"\label{tab:aggregate}")
+    lines.append(r"\begin{tabular}{lc}")
+    lines.append(r"\toprule")
+    lines.append(r"Method & Mean $|$shots $-$ Oracle$|$ \\")
+    lines.append(r"\midrule")
+    lines.append(rf"\textbf{{DRL agent (ours)}} & \textbf{{{drl_mae:,.0f}}} \\".replace(",", "{,}"))
+    lines.append(rf"Inc-TVD \cite{{bisicchia2026shots}}   & {agg_tvd:,.0f} \\".replace(",", "{,}"))
+    lines.append(rf"Inc-Hellinger \cite{{bisicchia2026shots}} & {agg_hell:,.0f} \\".replace(",", "{,}"))
+    lines.append(rf"Inc-JS \cite{{bisicchia2026shots}}    & {agg_js:,.0f} \\".replace(",", "{,}"))
+    lines.append(rf"Weissman bound \cite{{weissman2003inequalities}} & {fmt(agg_weiss)} \\")
+    lines.append(rf"Hoeffding bound \cite{{hoeffding1963}} & {fmt(agg_hoeff)} \\")
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
+    lines.append(r"\end{table}")
+    lines.append("")
+
+    # ---- per-trace tables ----------------------------------------------
+    def trace_table(items, caption, label):
+        L = []
+        L.append(r"\begin{table}[t]")
+        L.append(r"\centering")
+        L.append(r"\footnotesize")
+        L.append(r"\setlength{\tabcolsep}{4pt}")
+        L.append(rf"\caption{{{caption}}}")
+        L.append(rf"\label{{{label}}}")
+        L.append(r"\begin{tabular}{lccrrrrr}")
+        L.append(r"\toprule")
+        L.append(r"Trace & $n$ & Oracle & DRL (ours) & Inc-TVD & Inc-Hell & "
+                 r"Inc-JS & Weissman \\")
+        L.append(r"\midrule")
+        for m in items:
+            s = m["sota"]
+            drl = fmt_drl(m["drl_mean"], m["drl_std"])
+            if s is None:
+                row = (rf"{m['trace']} & {m['size']} & {m['oracle']:.0f} & "
+                       rf"{drl} & -- & -- & -- & -- \\")
+            else:
+                row = (rf"{m['trace']} & {m['size']} & {m['oracle']:.0f} & "
+                       rf"{drl} & {s['tvd']:.0f} & {s['hell']:.0f} & "
+                       rf"{s['js']:.0f} & {fmt(s['weiss'])} \\")
+            L.append(row)
+        L.append(r"\bottomrule")
+        L.append(r"\end{tabular}")
+        L.append(r"\end{table}")
+        L.append("")
+        return L
+
+    lines += trace_table(
+        small,
+        r"Per-trace shot counts on the \emph{small} circuits ($n<10$): "
+        r"a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), "
+        r"and the online Inc-* policies / a-priori Weissman bound of "
+        r"Bisicchia et al.~\cite{bisicchia2026shots} at $\delta=0.10$.",
+        "tab:pertrace-small")
+    lines += trace_table(
+        large,
+        r"Per-trace shot counts on the \emph{large} circuits ($n\ge10$): "
+        r"a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), "
+        r"and the online Inc-* policies / a-priori Weissman bound of "
+        r"Bisicchia et al.~\cite{bisicchia2026shots} at $\delta=0.10$.",
+        "tab:pertrace-large")
+
+    open(OUT, "w").write("\n".join(lines))
+    print(f"Wrote {OUT}")
+    print(f"  matched SOTA for {sum(1 for m in merged if m['sota'])}/{len(merged)} traces")
+    print(f"  DRL mean |error| from oracle : {drl_mae:,.0f}")
+    print(f"  Inc-TVD  mean |error|        : {agg_tvd:,.0f}")
+    print(f"  Inc-Hell mean |error|        : {agg_hell:,.0f}")
+    print(f"  Inc-JS   mean |error|        : {agg_js:,.0f}")
+    print(f"  Weissman mean |error|        : {agg_weiss:,.0f}")
+    print(f"  Hoeffding mean |error|       : {agg_hoeff:,.0f}")
+
+
+if __name__ == "__main__":
+    main()
