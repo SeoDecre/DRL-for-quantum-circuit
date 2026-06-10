@@ -19,7 +19,15 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 TABLES_TEX = os.path.join(ROOT, "pdfs", "tables.tex")
-MULTIRUN_CSV = os.path.join(ROOT, "generic", "multirun_eval-generic.csv")
+# Program versions now write to separate folders so runs cannot overwrite each
+# other.  The paper uses the first CSV found in this preference order:
+#   generic-enhanced-2/ (v2)  >  generic-enhanced/ (v1)  >  generic/ (original)
+_CSV_CANDIDATES = [
+    os.path.join(ROOT, "generic-enhanced-2", "multirun_eval-generic.csv"),
+    os.path.join(ROOT, "generic-enhanced", "multirun_eval-generic.csv"),
+    os.path.join(ROOT, "generic", "multirun_eval-generic.csv"),
+]
+MULTIRUN_CSV = next(p for p in _CSV_CANDIDATES if os.path.exists(p))
 OUT = os.path.join(HERE, "tables_generated.tex")
 
 # backend short code (paper tables) -> qsimbench backend name (our CSV)
@@ -97,6 +105,7 @@ def fmt_drl(mean, std):
 
 
 def main():
+    print(f"Using multirun CSV: {MULTIRUN_CSV}")
     sota = parse_sota()
     rows = load_multirun()
 
