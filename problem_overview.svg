@@ -32,7 +32,7 @@
 <text x="452" y="212" fill="#333">    qaoa  q=14   fake_kyiv           oracle= 13350  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
 <text x="452" y="234" fill="#333">    qaoa  q=14   fake_sherbrooke     oracle= 14350  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
 <text x="452" y="256" fill="#333">     qft  q=12   fake_fez            oracle= 15400  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
-<text x="452" y="278" fill="#333">     qft  q=12   fake_torino         oracle= 15100  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="278" fill="#333">     qft  q=12   fake_torino         oracle= 15200  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
 <text x="452" y="300" fill="#333">     qft  q=14   fake_fez            oracle= 17750  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
 <text x="452" y="322" fill="#333">     qft  q=14   fake_torino         oracle= 17750  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
 <text x="452" y="344" fill="#333">     qnn  q=14   fake_fez            oracle= 17600  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
