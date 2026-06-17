@@ -19,6 +19,8 @@
 \usepackage{hyperref}
 \renewcommand\UrlFont{\color{blue}\rmfamily}
 \urlstyle{rm}
+% allow long URLs to break across lines instead of overflowing the margin
+\Urlmuskip=0mu plus 1mu\relax
 
 \graphicspath{{figures/}}
 
@@ -47,19 +49,18 @@ distribution. Choosing how many shots to run is a practical and consequential
 decision: too few yield statistically unreliable results, while too many waste
 scarce and costly quantum hardware time. Existing solutions either rely on
 conservative a-priori concentration bounds or on hand-crafted online stopping
-heuristics tailored to specific algorithm families. We investigate whether an
-agent can instead \emph{learn} a stopping policy directly from execution data,
-under a fully black-box assumption that makes no use of the circuit structure or
-the backend noise model. We frame adaptive shot allocation as a Markov Decision
-Process and train a Deep Q-Network that, at every batch of shots, observes a
-nine-feature ``instrument panel'' of the running empirical distribution and
-decides whether to continue or to stop. Once trained, the policy is a
-self-contained, black-box \emph{shot-allocation service} that a quantum-cloud
-execution manager can query online, with no access to the circuit or backend
-internals. The agent is rewarded against an
-a-posteriori optimal shot count derived from the point of diminishing returns,
-through a precision-shaped asymmetric reward that makes a slight overshoot the
-optimal stop. We train and evaluate on QSimBench, using a strict split in which
+heuristics tailored to specific algorithm families. We propose to delegate this decision to a \emph{shot-allocation service}: an
+intermediary gateway that sits between the user and the quantum cloud,
+transparently managing circuit execution and deciding online, after each batch
+of shots, when enough have been collected. The service operates under a fully
+black-box assumption, making no use of the circuit structure or the backend
+noise model. Its stopping logic is not hand-coded but \emph{learned}: we frame
+adaptive shot allocation as a Markov Decision Process and train a Deep Q-Network
+that, at every batch, observes a nine-feature ``instrument panel'' of the running
+empirical distribution and decides whether to continue or to stop. The learner is
+rewarded against an a-posteriori optimal shot count derived from the point of
+diminishing returns, through a precision-shaped asymmetric reward that makes a
+slight overshoot the optimal stop. We train and evaluate on QSimBench, using a strict split in which
 the 36 benchmark traces of a recent state-of-the-art study are held out and
 never seen during training. The learned policy adopts a safety-first behaviour,
 drastically outperforms a-priori Weissman and Hoeffding bounds, surpasses two of
@@ -105,27 +106,34 @@ divergence-based stability criterion is met. While effective, such a procedure
 embeds a hand-designed stopping rule whose sensitivity must be tuned through a
 large grid of hyperparameters.
 
-In this paper we ask a complementary question: \emph{can the stopping policy
-itself be learned?} Rather than designing a fixed convergence test, we let a
-\emph{Deep Reinforcement Learning} (DRL) agent discover one by interacting with
-simulated quantum executions and receiving feedback on the quality of its
-stopping decisions. The agent operates under the same black-box assumption as
-the reference framework: it never sees the circuit structure or the noise
-model, only the statistics of the outcomes observed so far. Crucially, the
-resulting policy is a single, lightweight network that can be packaged as a
-\emph{shot-allocation service}:\footnote{This work targets service-oriented
-quantum execution and is prepared for ICSOC~2026
-(\url{https://icsoc2026.it.p.lodz.pl}).} a stateless online oracle that a
-quantum-execution platform invokes after each batch to decide whether to keep
-sampling, decoupling the (expensive, offline) learning from the (cheap, online)
-decision.
+In this paper we take a \emph{service-oriented} view of this problem. We propose a
+\emph{shot-allocation service}: a lightweight intermediary, or gateway, that a
+practitioner places between their application and the quantum cloud. The user
+submits a circuit and a target accuracy; the service transparently drives its
+execution on the chosen backend, monitors the stream of measurement outcomes
+batch by batch, and decides online when the empirical distribution has stabilised
+enough to stop, returning the result together with the number of shots actually
+spent. The service treats the backend as a black box: it never inspects the
+circuit structure or the noise model, only the statistics of the outcomes
+observed so far. In this way it relieves practitioners of the brittle,
+circuit-specific tuning that fixing a shot count up front requires, and exposes
+shot optimisation as a reusable capability of the execution stack.
+
+The question we study is how the service should make its stop-or-continue
+decision. Rather than embedding a fixed convergence test, we let the service
+\emph{learn} one: its decision logic is a \emph{Deep Reinforcement Learning}
+(DRL) agent, trained on simulated executions, that discovers a stopping policy
+from feedback on the quality of its decisions. This cleanly separates the
+(expensive, offline) learning of the policy from the (cheap, online) per-batch
+decision that the deployed service performs.
 
 \paragraph{Contributions.} The contributions of this work are:
 \begin{enumerate}
-  \item We formulate adaptive shot allocation as a Markov Decision Process and
-  solve it with a Deep Q-Network (DQN) that decides, batch by batch, whether to
-  continue executing or to stop, using only a compact black-box view of the
-  running empirical distribution (Section~\ref{sec:method}).
+  \item We cast black-box shot allocation as a \emph{service} that mediates
+  between users and quantum-cloud backends, and realise its decision logic as a
+  Markov Decision Process solved by a Deep Q-Network (DQN) that decides, batch by
+  batch, whether to continue executing or to stop, using only a compact black-box
+  view of the running empirical distribution (Section~\ref{sec:method}).
   \item We design a nine-feature state representation (an ``instrument
   panel'' combining static problem descriptors with dynamic convergence signals
   built on the same diminishing-returns proxy that defines the Oracle) together
@@ -189,12 +197,24 @@ are therefore independent of the actual circuit. This makes them safe but
 extremely conservative, often overestimating the required shots by several
 orders of magnitude.
 
-\paragraph{Adaptive allocation for variational algorithms.} A large body of work
-dynamically reallocates shots across the iterations of variational quantum
-algorithms~\cite{cerezo2021vqa,kandala2017vqe}, using gradient variance, utility
-per iteration, or output entropy. These methods assume an iterative optimisation
-loop with non-stationary distributions and do not transfer to the static-circuit
-setting we target.
+\paragraph{Adaptive allocation for variational algorithms.} The most studied
+setting is the iterative optimisation of \emph{variational} quantum
+algorithms~\cite{cerezo2021vqa,kandala2017vqe}, in which a classical optimiser
+repeatedly updates the circuit parameters, so the output distribution drifts from
+one iteration to the next. The question there is how many shots to spend per
+gradient evaluation. iCANS allocates shots individually to each partial
+derivative, spending more where the gradient signal is large relative to its
+shot noise~\cite{kubler2020icans}; gCANS couples this choice across all
+parameters to maximise the expected gain per shot, achieving geometric
+convergence in convex regimes~\cite{gu2021gcans}; and Rosalin combines
+per-derivative allocation with weighted random sampling of the Hamiltonian terms
+to lower the cost of each energy estimate~\cite{arrasmith2020rosalin}. A related
+line keys the shot count to the entropy of the output distribution across
+iterations. All of these methods exploit algorithm-internal signals (gradients,
+Hamiltonian structure, an energy objective) and assume a non-stationary,
+iteration-driven workload; they therefore do not transfer to the static-circuit
+setting we target, where the distribution is fixed and only the raw outcomes are
+observable.
 
 \paragraph{Learning-based methods.} The strategy most related to ours uses
 machine learning, chiefly reinforcement learning (RL), to derive shot
@@ -264,18 +284,64 @@ perceptron of ReLU units (Section~\ref{sec:method}).
 
 \subsection{System Architecture}
 
-Our learning system comprises three conceptually distinct components
-(Fig.~\ref{fig:arch}). The \emph{agent} is the DQN learner that, at each step,
-observes the environment state and chooses to \textsc{continue} or to
-\textsc{stop}. The \emph{quantum environment} is a simulated playground, built
-on QSimBench, that executes batches of shots and exposes the running statistics
-of the outcomes. Together, the trained agent and the environment interface form
-the \emph{online} part of the system: the black-box shot-allocation service
-that a quantum-execution platform would deploy. The \emph{Oracle} is a direct
-implementation of the a-posteriori optimum of Eq.~\eqref{eq:oracle}; it belongs
-to the \emph{offline} part: it acts as a training-time teacher whose answer is
-used \emph{only} at the end of an episode to score the agent, and is never
-revealed during decision making nor needed at deployment.
+We first describe the system from the outside, as a service (Fig.~\ref{fig:service}),
+and then open it up to show how its decision policy is learned
+(Fig.~\ref{fig:arch}).
+
+\paragraph{The service.} The shot-allocation service is an intermediary that sits
+between a user and a quantum-cloud backend. A user submits a circuit $C$ and a
+target accuracy $\delta$; the service forwards $C$ to the chosen backend $Q$,
+executes it one batch of shots at a time, and after each batch inspects the
+updated empirical distribution to decide whether to request another batch or to
+stop. On stopping it returns the estimated output distribution together with the
+number of shots actually spent. The service never inspects the circuit or the
+noise model: from its viewpoint the backend is a black box that, given a batch,
+returns measurement outcomes. Its single non-trivial decision, \emph{continue or
+stop}, is precisely the stopping policy this paper learns.
+
+\begin{figure}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={rounded corners=2pt, draw, thick, align=center,
+              minimum height=15mm, inner sep=4pt},
+  user/.style={box, fill=gray!8, draw=gray!60, minimum width=26mm},
+  svc/.style ={box, fill=blue!10, draw=blue!60, very thick, minimum width=42mm},
+  qpu/.style ={box, fill=orange!12, draw=orange!70!black, minimum width=26mm},
+  lbl/.style={font=\scriptsize\itshape, align=center},
+  >={Stealth[length=2.8mm]}
+]
+  \node[user] (user) {\textbf{User /}\\\textbf{application}};
+  \node[svc, right=20mm of user] (svc) {\textbf{Shot-allocation service}\\{\scriptsize (gateway)}\\[2pt]{\scriptsize\itshape learned stop/continue}\\{\scriptsize\itshape policy (this work)}};
+  \node[qpu, right=20mm of svc] (qpu) {\textbf{Quantum}\\\textbf{cloud / QPU}};
+
+  \draw[->] ([yshift=4.5mm]user.east) -- node[lbl, above]{circuit $C$,\\target $\delta$} ([yshift=4.5mm]svc.west);
+  \draw[->] ([yshift=-4.5mm]svc.west) -- node[lbl, below]{result \&\\shots used} ([yshift=-4.5mm]user.east);
+  \draw[->] ([yshift=4.5mm]svc.east) -- node[lbl, above]{batch of\\shots} ([yshift=4.5mm]qpu.west);
+  \draw[->] ([yshift=-4.5mm]qpu.west) -- node[lbl, below]{measured\\outcomes} ([yshift=-4.5mm]svc.east);
+\end{tikzpicture}}
+\caption{The shot-allocation service as an intermediary gateway between the user
+and the quantum cloud. The user submits a circuit and a target accuracy; the
+service drives execution on the backend one batch at a time, watches the returned
+outcomes, and decides online when to stop, returning the estimated distribution
+and the number of shots spent. This paper concerns the service's stop/continue
+policy, which is \emph{learned} (Fig.~\ref{fig:arch}).}
+\label{fig:service}
+\end{figure}
+
+\paragraph{Inside the service: learning the policy.} The stop/continue policy is
+obtained by reinforcement learning. At training time the service is embedded in a
+standard RL loop of three conceptually distinct components (Fig.~\ref{fig:arch}).
+The \emph{agent} is the DQN learner that, at each step, observes a compact state
+and chooses to \textsc{continue} or to \textsc{stop}; it is the component that is
+eventually distilled into the deployed service. The \emph{quantum environment} is
+a simulated playground, built on QSimBench, that stands in for the backend: it
+executes batches of shots and exposes the running statistics of the outcomes. The
+\emph{Oracle} is a direct implementation of the a-posteriori optimum of
+Eq.~\eqref{eq:oracle}; it is a training-time teacher whose answer is used
+\emph{only} at the end of an episode to score the agent, and is never revealed
+during decision making nor needed once the service is deployed.
 
 \begin{figure}[t]
 \centering
@@ -309,13 +375,13 @@ revealed during decision making nor needed at deployment.
           inner sep=3mm, label={[orange!70!black, font=\scriptsize\bfseries]below:Offline: training-time teacher}] {};
   \end{scope}
 \end{tikzpicture}
-\caption{High-level architecture. The \emph{agent} and the \emph{quantum
-environment} form a closed interaction loop (solid arrows): the agent observes a
-state and acts iteratively until it stops. Only at episode termination does the
-environment consult the \emph{Oracle} (dashed arrows) to turn the agent's stop
-into a reward; the Oracle's optimal count $n^{\star}$ is never shown to the
-agent during decision making and is not required once the policy is deployed as
-an online service.}
+\caption{Training-time learning loop inside the service. The \emph{agent} and the
+\emph{quantum environment} form a closed interaction loop (solid arrows): the
+agent observes a state and acts iteratively until it stops. Only at episode
+termination does the environment consult the \emph{Oracle} (dashed arrows) to turn
+the agent's stop into a reward; the Oracle's optimal count $n^{\star}$ is never
+shown to the agent during decision making and is not required once the policy is
+deployed as an online service.}
 \label{fig:arch}
 \end{figure}
 
@@ -471,10 +537,10 @@ problems, so it is exposed to the full spectrum of convergence behaviours.
 and network use PyTorch~\cite{paszke2019pytorch}; the environment implements the
 OpenAI Gym interface~\cite{brockman2016gym}; QSimBench supplies the circuit
 traces and noise profiles. The full source code, oracle cache, and evaluation
-scripts are released as open
-source.\footnote{Anonymised for double-blind review:
-\url{https://anonymous.4open.science/r/drl-shot-allocation}; the de-anonymised
-repository link will be provided in the camera-ready version.}
+scripts are released as open source; the repository is anonymised for
+double-blind review at
+\url{https://anonymous.4open.science/r/drl-shot-allocation}, with the
+de-anonymised link to follow in the camera-ready version.
 
 \paragraph{Training regimen.} Each agent is trained from scratch with a fixed
 random seed for reproducibility. The production \textsc{generic} agent is
