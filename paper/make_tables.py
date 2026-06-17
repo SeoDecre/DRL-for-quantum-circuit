@@ -21,9 +21,8 @@ ROOT = os.path.dirname(HERE)
 TABLES_TEX = os.path.join(ROOT, "pdfs", "tables.tex")
 # Program versions now write to separate folders so runs cannot overwrite each
 # other.  The paper uses the first CSV found in this preference order:
-#   generic-enhanced-2/ (v2)  >  generic-enhanced/ (v1)  >  generic/ (original)
+#   The paper is aligned to v1 (program-main-enhanced.ipynb -> generic-enhanced/).
 _CSV_CANDIDATES = [
-    os.path.join(ROOT, "generic-enhanced-2", "multirun_eval-generic.csv"),
     os.path.join(ROOT, "generic-enhanced", "multirun_eval-generic.csv"),
     os.path.join(ROOT, "generic", "multirun_eval-generic.csv"),
 ]
@@ -206,15 +205,15 @@ def main():
         small,
         r"Per-trace shot counts on the \emph{small} circuits ($n<10$): "
         r"a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), "
-        r"and the online Inc-* policies / a-priori Weissman bound of "
-        r"Bisicchia et al.~\cite{bisicchia2026shots} at $\delta=0.10$.",
+        r"and the online Inc-* policies / a-priori Weissman bound of the reference "
+        r"framework~\cite{bisicchia2026shots} at $\delta=0.10$.",
         "tab:pertrace-small")
     lines += trace_table(
         large,
-        r"Per-trace shot counts on the \emph{large} circuits ($n\ge10$): "
+        r"Per-trace shot counts on the \emph{big} circuits ($n\ge10$): "
         r"a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), "
-        r"and the online Inc-* policies / a-priori Weissman bound of "
-        r"Bisicchia et al.~\cite{bisicchia2026shots} at $\delta=0.10$.",
+        r"and the online Inc-* policies / a-priori Weissman bound of the reference "
+        r"framework~\cite{bisicchia2026shots} at $\delta=0.10$.",
         "tab:pertrace-large")
 
     open(OUT, "w").write("\n".join(lines))

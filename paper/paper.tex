@@ -1,4 +1,6 @@
-% QUANTICS 2026 submission -- Springer LNCS format
+% ICSOC 2026 submission -- Springer LNCS format
+% Venue: https://icsoc2026.it.p.lodz.pl  (24th Int. Conf. on Service-Oriented Computing)
+% Research papers: 10-15 pages incl. references, Springer LNCS, double-blind review.
 % Build:  pdflatex paper && bibtex paper && pdflatex paper && pdflatex paper
 % (requires llncs.cls and splncs04.bst, shipped alongside this file)
 \documentclass[runningheads]{llncs}
@@ -12,6 +14,8 @@
 \usepackage{xcolor}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds}
 \usepackage{hyperref}
 \renewcommand\UrlFont{\color{blue}\rmfamily}
 \urlstyle{rm}
@@ -24,6 +28,7 @@
 \titlerunning{DRL for Adaptive Shot Allocation in Quantum Circuits}
 
 \author{Sergio De Crescenzo \and
+Andrea Cossu \and
 Giuseppe Bisicchia\orcidID{0000-0003-2384-2480} \and
 Alessandro Bocci\orcidID{0000-0002-7649-3013} \and
 Antonio Brogi\orcidID{0000-0003-2048-2098}}
@@ -31,13 +36,13 @@ Antonio Brogi\orcidID{0000-0003-2048-2098}}
 
 \institute{Department of Computer Science, University of Pisa, Pisa, Italy\\
 \email{sergiodecrescenzo2003@gmail.com}\\
-\email{\{giuseppe.bisicchia,alessandro.bocci,antonio.brogi\}@unipi.it}}
+\email{\{andrea.cossu,giuseppe.bisicchia,alessandro.bocci,antonio.brogi\}@unipi.it}}
 
 \maketitle
 
 \begin{abstract}
-Quantum algorithms are executed by repeatedly sampling a circuit -- a process
-known as performing \emph{shots} -- in order to estimate its output
+Quantum algorithms are executed by repeatedly sampling a circuit (a process
+known as performing \emph{shots}) in order to estimate its output
 distribution. Choosing how many shots to run is a practical and consequential
 decision: too few yield statistically unreliable results, while too many waste
 scarce and costly quantum hardware time. Existing solutions either rely on
@@ -47,22 +52,26 @@ agent can instead \emph{learn} a stopping policy directly from execution data,
 under a fully black-box assumption that makes no use of the circuit structure or
 the backend noise model. We frame adaptive shot allocation as a Markov Decision
 Process and train a Deep Q-Network that, at every batch of shots, observes a
-ten-feature ``instrument panel'' of the running empirical distribution and
-decides whether to continue or to stop. The agent is rewarded against an
+nine-feature ``instrument panel'' of the running empirical distribution and
+decides whether to continue or to stop. Once trained, the policy is a
+self-contained, black-box \emph{shot-allocation service} that a quantum-cloud
+execution manager can query online, with no access to the circuit or backend
+internals. The agent is rewarded against an
 a-posteriori optimal shot count derived from the point of diminishing returns,
 through a precision-shaped asymmetric reward that makes a slight overshoot the
 optimal stop. We train and evaluate on QSimBench, using a strict split in which
 the 36 benchmark traces of a recent state-of-the-art study are held out and
 never seen during training. The learned policy adopts a safety-first behaviour,
 drastically outperforms a-priori Weissman and Hoeffding bounds, surpasses two of
-the three purpose-built divergence-based online policies, and approaches the
+the three purpose-built divergence-based online policies, and trails only the
 strongest hand-tuned configuration, demonstrating that black-box shot allocation
 is learnable. We discuss the strengths and the current limitations of the
 approach, and outline the road toward closing the remaining gap with the best
 online heuristic.
 
-\keywords{Quantum Computing \and Quantum Software Engineering \and Shot
-Allocation \and Deep Reinforcement Learning \and Deep Q-Network \and NISQ.}
+\keywords{Quantum Computing \and Quantum Software Engineering \and
+Service-Oriented Computing \and Shot Allocation \and Deep Reinforcement
+Learning \and Deep Q-Network \and NISQ.}
 \end{abstract}
 
 \section{Introduction}
@@ -86,22 +95,30 @@ typically fix the shot count up front from rules of thumb, which is either
 wasteful or unreliable because the right number depends on the specific circuit
 and backend.
 
-Recent work reframed this as the \emph{point of diminishing
+A recent line of work reframed this as the \emph{point of diminishing
 returns}~\cite{bisicchia2026shots}: the moment at which additional shots no
 longer meaningfully change the cumulative empirical distribution of a fixed
-(static, non-variational) circuit. The \textsc{IncrementalExecution} framework
-operationalises this idea as an online, black-box procedure that executes shots
-in batches and stops once a divergence-based stability criterion is met. While
-effective, such a procedure embeds a hand-designed stopping rule whose
-sensitivity must be tuned through a large grid of hyperparameters.
+(static, non-variational) circuit. The \textsc{IncrementalExecution}
+framework~\cite{bisicchia2026shots} operationalises this idea as an online,
+black-box procedure that executes shots in batches and stops once a
+divergence-based stability criterion is met. While effective, such a procedure
+embeds a hand-designed stopping rule whose sensitivity must be tuned through a
+large grid of hyperparameters.
 
 In this paper we ask a complementary question: \emph{can the stopping policy
 itself be learned?} Rather than designing a fixed convergence test, we let a
 \emph{Deep Reinforcement Learning} (DRL) agent discover one by interacting with
 simulated quantum executions and receiving feedback on the quality of its
 stopping decisions. The agent operates under the same black-box assumption as
-\textsc{IncrementalExecution}: it never sees the circuit structure or the noise
-model, only the statistics of the outcomes observed so far.
+the reference framework: it never sees the circuit structure or the noise
+model, only the statistics of the outcomes observed so far. Crucially, the
+resulting policy is a single, lightweight network that can be packaged as a
+\emph{shot-allocation service}:\footnote{This work targets service-oriented
+quantum execution and is prepared for ICSOC~2026
+(\url{https://icsoc2026.it.p.lodz.pl}).} a stateless online oracle that a
+quantum-execution platform invokes after each batch to decide whether to keep
+sampling, decoupling the (expensive, offline) learning from the (cheap, online)
+decision.
 
 \paragraph{Contributions.} The contributions of this work are:
 \begin{enumerate}
@@ -109,20 +126,20 @@ model, only the statistics of the outcomes observed so far.
   solve it with a Deep Q-Network (DQN) that decides, batch by batch, whether to
   continue executing or to stop, using only a compact black-box view of the
   running empirical distribution (Section~\ref{sec:method}).
-  \item We design a ten-feature state representation -- an ``instrument
+  \item We design a nine-feature state representation (an ``instrument
   panel'' combining static problem descriptors with dynamic convergence signals
-  built on the same diminishing-returns proxy that defines the Oracle -- and a
-  precision-shaped asymmetric reward that encodes the domain-specific asymmetry
-  between under- and over-sampling (Section~\ref{sec:method}).
+  built on the same diminishing-returns proxy that defines the Oracle) together
+  with a precision-shaped asymmetric reward that encodes the domain-specific
+  asymmetry between under- and over-sampling (Section~\ref{sec:method}).
   \item We train and evaluate the agent on QSimBench~\cite{qsimbench} under a
-  strict no-leakage split, holding out the exact 36 benchmark traces used by the
-  state-of-the-art study of Bisicchia et al.~\cite{bisicchia2026shots}, and we
-  compare the learned policy against five reference methods on identical traces
-  (Sections~\ref{sec:setup}--\ref{sec:results}).
+  strict no-leakage split, holding out the exact 36 benchmark traces used in the
+  evaluation of a recent state-of-the-art study~\cite{bisicchia2026shots}, and
+  we compare the learned policy against five reference methods on identical
+  traces (Sections~\ref{sec:setup}--\ref{sec:results}).
   \item We provide a critical analysis of the learned behaviour, showing it is
   robust and safety-oriented, vastly superior to a-priori bounds, superior to
-  two of the three divergence-based online policies, and within reach of --
-  though not yet ahead of -- the strongest one (Section~\ref{sec:results}).
+  two of the three divergence-based online policies, and trailing only the
+  strongest, hand-tuned one (Section~\ref{sec:results}).
 \end{enumerate}
 
 \section{Background and Related Work}
@@ -139,8 +156,8 @@ large numbers $\hat{P}_n \to P$ almost surely, so for a divergence
 $\mathcal{D}(\cdot,\cdot)$ the deviation $\mathcal{D}(\hat{P}_n, P)$ vanishes as
 $n$ grows.
 
-Since $P$ is inaccessible on real hardware, Bisicchia et
-al.~\cite{bisicchia2026shots} adopt an \emph{a-posteriori} reference: the
+Since $P$ is inaccessible on real hardware, a recent
+study~\cite{bisicchia2026shots} adopts an \emph{a-posteriori} reference: the
 empirical distribution $\hat{P}_{\mathcal{B}}$ obtained under a fixed budget
 $\mathcal{B}$. The a-posteriori optimal shot count is the smallest prefix length
 $n^{\star}$ whose distribution is within a tolerance $\delta$ of the full-budget
@@ -156,7 +173,13 @@ of~\cite{bisicchia2026shots} with the Total Variation Distance (TVD), as our
 scored. Throughout, we fix $\mathcal{B}=20{,}000$ shots, a batch size of $50$,
 and $\delta=0.10$.
 
-\subsection{Existing Approaches to Shot Optimisation}
+\subsection{Related Work: Shot-Optimisation Strategies}
+\label{sec:relwork}
+
+Existing shot-optimisation methods for quantum circuits fall into four families,
+which we review here and contrast with the present work; the deep-learning
+machinery our agent builds on is deferred to the background
+in~Section~\ref{sec:background-dl}.
 
 \paragraph{A-priori concentration bounds.} Hoeffding-style~\cite{hoeffding1963}
 and Weissman-style~\cite{weissman2003inequalities} inequalities provide
@@ -173,95 +196,178 @@ per iteration, or output entropy. These methods assume an iterative optimisation
 loop with non-stationary distributions and do not transfer to the static-circuit
 setting we target.
 
-\paragraph{Learning-based methods.} Reinforcement learning has been applied to
-shot scheduling within VQE optimisation, and supervised schedules have been used
-in quantum machine learning~\cite{phalak2023shot}. These approaches are tied to
-specific workloads and rely on task-specific supervision signals.
+\paragraph{Learning-based methods.} The strategy most related to ours uses
+machine learning, chiefly reinforcement learning (RL), to derive shot
+policies from execution data. Within variational workloads, an RL agent can
+allocate measurement shots across the iterations of a VQE optimisation to
+minimise the total shot count while preserving convergence to the energy
+minimum~\cite{liang2024shotreduction}, and analogous RL controllers have been
+proposed for recursive QAOA~\cite{rqaoa2026rlshots}; supervised, epoch-based
+schedules have likewise accelerated training in quantum machine
+learning~\cite{phalak2023shot}. These approaches share the use of a learned
+controller but differ from the present work in three decisive respects.
+\emph{(i) Workload:} they target \emph{non-stationary}, variational or
+adaptive pipelines in which the circuit changes across iterations, whereas we
+address \emph{static}, non-variational circuits with a fixed output
+distribution. \emph{(ii) Observability:} they consume algorithm-specific,
+white-/grey-box signals (energies, gradient variances, or training-loss
+curves), whereas our agent is strictly \emph{black-box}, observing only the
+empirical outcome statistics, never the circuit, the cost function, or its
+gradients. \emph{(iii) Supervision and output:} their reward is the downstream
+task objective, so the learned policy is an \emph{allocator} tightly bound to
+one algorithm family; our only supervision is an a-posteriori optimal stop
+derived from the point of diminishing returns, so the learned policy is a
+\emph{general stopping rule} transferable across circuit families. To our
+knowledge, RL has not previously been used to learn a black-box stopping rule
+for static-circuit shot allocation.
 
-\paragraph{Online black-box control.} Closest to our setting is the
-\textsc{IncrementalExecution} framework~\cite{bisicchia2026shots}, which detects
-the point of diminishing returns online from the observed outcomes alone. Its
-behaviour is governed by pluggable stopping, stability, and allocation policies;
-its best configurations (denoted \mbox{Inc-TVD}, \mbox{Inc-Hell}, \mbox{Inc-JS}
+\paragraph{Online black-box control.} Closest to our setting is a recent online,
+black-box framework~\cite{bisicchia2026shots} that detects the point of
+diminishing returns from the observed outcomes alone. Its behaviour is governed
+by pluggable stopping, stability, and allocation policies; its best
+configurations (denoted \mbox{Inc-TVD}, \mbox{Inc-Hell}, \mbox{Inc-JS}
 according to the divergence used) constitute the strongest baselines for static
 circuits. Our work keeps the same black-box assumption but replaces the
-hand-crafted stopping rule with a \emph{learned} one.
+hand-crafted, grid-tuned stopping rule with a \emph{learned} one, turning a
+fixed convergence test into a trainable decision policy.
 
-\subsection{Deep Q-Networks}
+\subsection{Background: Reinforcement Learning and Deep Q-Networks}
+\label{sec:background-dl}
 
-Reinforcement learning models an agent interacting with an environment over
-discrete steps, choosing actions to maximise a cumulative
-reward~\cite{sutton2018reinforcement}. Q-learning~\cite{watkins1992qlearning}
-estimates the action-value function $Q(s,a)$, the expected return of taking
-action $a$ in state $s$. When the state space is large or continuous, the table
-is replaced by a neural function approximator, yielding the Deep Q-Network
-(DQN)~\cite{mnih2015human}, stabilised by \emph{experience replay} (training on
-random mini-batches of past transitions) and a periodically synchronised
-\emph{target network}. We adopt this well-established machinery as the learning
-backbone.
+Reinforcement learning (RL) models an agent that interacts with an environment
+over discrete steps, choosing actions to maximise a cumulative
+reward~\cite{sutton2018reinforcement}. The interaction is formalised as a
+\emph{Markov Decision Process} (MDP) $(\mathcal{S},\mathcal{A},P,r,\gamma)$:
+at step $t$ the agent observes a state $s_t\in\mathcal{S}$, takes an action
+$a_t\in\mathcal{A}$, receives a reward $r_t$, and transitions to $s_{t+1}$
+according to $P$. The goal is a policy $\pi$ maximising the expected discounted
+return $\mathbb{E}\bigl[\sum_{k\ge 0}\gamma^{k} r_{t+k}\bigr]$, where
+$\gamma\in[0,1)$ trades off immediate against future reward.
+
+Q-learning~\cite{watkins1992qlearning} estimates the optimal action-value
+function $Q^{\star}(s,a)$, the expected return of taking action $a$ in state $s$
+and acting optimally thereafter, via the Bellman target
+$y_t = r_t + \gamma\max_{a'}Q(s_{t+1},a')$. When the state space is large or
+continuous, the lookup table is replaced by a neural function approximator
+$Q(s,a;\theta)$, yielding the Deep Q-Network (DQN)~\cite{mnih2015human}, trained
+by minimising the temporal-difference error $\bigl(y_t-Q(s_t,a_t;\theta)\bigr)$.
+Two devices stabilise the otherwise unstable bootstrap of a function
+approximator on its own predictions: \emph{experience replay}, which trains on
+random mini-batches drawn from a buffer of past transitions to break temporal
+correlations, and a periodically synchronised \emph{target network}, a frozen
+copy of $\theta$ used to compute $y_t$. We adopt this well-established machinery
+as the learning backbone, with the network itself being a standard multi-layer
+perceptron of ReLU units (Section~\ref{sec:method}).
 
 \section{Method}
 \label{sec:method}
 
 \subsection{System Architecture}
 
-Our learning system comprises three interacting components
-(Fig.~\ref{fig:arch}). The \emph{quantum environment} is a simulated playground,
-built on QSimBench, that executes batches of shots and exposes the running
-statistics of the outcomes. The \emph{Oracle} is a direct implementation of the
-a-posteriori optimum of Eq.~\eqref{eq:oracle}; crucially, its answer is used
-\emph{only} at the end of an episode to score the agent and is never revealed
-during decision making. The \emph{agent} is the DQN learner that, at each step,
-observes the environment state and chooses to continue or to stop.
+Our learning system comprises three conceptually distinct components
+(Fig.~\ref{fig:arch}). The \emph{agent} is the DQN learner that, at each step,
+observes the environment state and chooses to \textsc{continue} or to
+\textsc{stop}. The \emph{quantum environment} is a simulated playground, built
+on QSimBench, that executes batches of shots and exposes the running statistics
+of the outcomes. Together, the trained agent and the environment interface form
+the \emph{online} part of the system: the black-box shot-allocation service
+that a quantum-execution platform would deploy. The \emph{Oracle} is a direct
+implementation of the a-posteriori optimum of Eq.~\eqref{eq:oracle}; it belongs
+to the \emph{offline} part: it acts as a training-time teacher whose answer is
+used \emph{only} at the end of an episode to score the agent, and is never
+revealed during decision making nor needed at deployment.
 
 \begin{figure}[t]
 \centering
-% architecture sketch (text-based to keep the build self-contained)
-\fbox{\parbox{0.92\textwidth}{\centering\small
-\textbf{DQN agent (Learner)} $\;\xrightarrow{\;\text{action: continue / stop}\;}\;$
-\textbf{Quantum environment (Playground)}\\[2pt]
-\textbf{DQN agent} $\;\xleftarrow{\;\text{state, reward}\;}\;$
-\textbf{Quantum environment}\\[4pt]
-at episode termination only:\quad
-\textbf{Quantum environment} $\;\xrightarrow{\;\text{query}\;}\;$
-\textbf{Oracle} $\;\xrightarrow{\;\text{optimal shots}\;}\;$ \textbf{reward}\\[2pt]
-(\textbf{Oracle} = a-posteriori optimum, Eq.~\eqref{eq:oracle})
-}}
-\caption{High-level architecture. The agent observes states and acts iteratively
-until it stops. Only at episode termination does the environment consult the
-Oracle to compute the reward; the Oracle's optimal shot count is never shown to
-the agent during decision making.}
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={rounded corners=2pt, draw, thick, align=center,
+              minimum height=11mm, minimum width=34mm, inner sep=4pt},
+  agent/.style={box, fill=blue!8, draw=blue!55},
+  envb/.style ={box, fill=green!8, draw=green!55!black},
+  oracle/.style={box, fill=orange!12, draw=orange!70!black},
+  lbl/.style={font=\scriptsize\itshape, align=center},
+  >={Stealth[length=2.6mm]}
+]
+  \node[agent]  (agent) {\textbf{Agent}\\(DQN learner)\\{\scriptsize policy $\pi$: continue/stop}};
+  \node[envb, right=30mm of agent] (env) {\textbf{Quantum environment}\\(QSimBench playground)\\{\scriptsize executes batches of shots}};
+  \node[oracle, below=15mm of env] (oracle) {\textbf{Oracle}\\{\scriptsize a-posteriori optimum}\\{\scriptsize Eq.~\eqref{eq:oracle}}};
+
+  % agent <-> env interaction loop (horizontal)
+  \draw[->, blue!60!black] ([yshift=3.5mm]agent.east) -- node[lbl, above]{action\\\textsc{continue}/\textsc{stop}} ([yshift=3.5mm]env.west);
+  \draw[->, green!45!black] ([yshift=-3.5mm]env.west) -- node[lbl, below]{state $\mathbf{s}_t$, reward $r_t$} ([yshift=-3.5mm]agent.east);
+
+  % env <-> oracle, episode termination only (vertical)
+  \draw[->, dashed, orange!75!black] ([xshift=-6mm]env.south) -- node[lbl, left]{query:\\full trace} ([xshift=-6mm]oracle.north);
+  \draw[->, dashed, orange!75!black] ([xshift=6mm]oracle.north) -- node[lbl, right]{$n^{\star}$\\(reward)} ([xshift=6mm]env.south);
+
+  % grouping: online service vs offline teacher
+  \begin{scope}[on background layer]
+    \node[draw=blue!40, dashed, rounded corners, fit=(agent)(env),
+          inner sep=5mm, label={[blue!55!black, font=\scriptsize\bfseries]above:Online: deployable shot-allocation service}] {};
+    \node[draw=orange!60, dotted, rounded corners, fit=(oracle),
+          inner sep=3mm, label={[orange!70!black, font=\scriptsize\bfseries]below:Offline: training-time teacher}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{High-level architecture. The \emph{agent} and the \emph{quantum
+environment} form a closed interaction loop (solid arrows): the agent observes a
+state and acts iteratively until it stops. Only at episode termination does the
+environment consult the \emph{Oracle} (dashed arrows) to turn the agent's stop
+into a reward; the Oracle's optimal count $n^{\star}$ is never shown to the
+agent during decision making and is not required once the policy is deployed as
+an online service.}
 \label{fig:arch}
 \end{figure}
 
 \subsection{State Space}
+\label{sec:state}
 
-The state $\mathbf{s}_t \in [0,1]^{10}$ is an ``instrument panel'' of ten
-features, each normalised to aid training. Four are \emph{static} descriptors of
-the problem instance and six are \emph{dynamic} signals recomputed after every
-batch:
-\begin{description}
-  \item[Static] (i) an algorithm encoding, (ii) the circuit size (number of
-  qubits), (iii) a backend encoding, and (iv) the current shot count as a
-  fraction of the budget (a progress bar).
-  \item[Dynamic] (v) the Shannon \emph{entropy} of the cumulative distribution,
-  normalised by its maximum attainable value ($n$ bits for $n$ qubits) so that
-  the feature remains discriminative on large outcome spaces; (vi) the
-  \emph{concentration} $\sum_x \hat{P}(x)^2$ (collision probability), a
-  scale-free measure of peakedness; (vii)--(viii) two \emph{rate-of-change}
-  signals, the TVD between the current cumulative distribution and the
-  cumulative distribution one batch and ten batches earlier -- the same
-  lag-based diminishing-returns proxy that underlies the Oracle definition;
-  (ix) a \emph{convergence streak} counting the consecutive batches whose
-  long-lag rate of change stays below the Oracle tolerance $\delta$, mirroring
-  the $k$-consecutive stability criterion of \textsc{IncrementalExecution}; and
-  (x) a \emph{relative-progress} term comparing the current shot count to a
-  size-dependent heuristic, which lets the agent tell early statistical noise
-  from genuine late convergence.
-\end{description}
-The static features let the agent recognise the kind of circuit it faces, while
-the dynamic features let it perceive, in real time, how close the empirical
-distribution is to stabilising.
+At step $t$ the agent has executed $N_t = 50\,t$ shots of an instance
+$(\mathtt{alg},n,\mathtt{bk})$ (algorithm, number of qubits, and backend)
+and holds the cumulative empirical distribution $\hat{P}_t$ over observed
+outcomes. The state is an ``instrument panel''
+\begin{equation}
+\mathbf{s}_t = \bigl(\;
+  \underbrace{a,\;\; n/15,\;\; b,\;\; N_t/\mathcal{B}}_{\text{static descriptors}},\;\;
+  \underbrace{\tilde{H}_t,\;\; C_t,\;\; \rho^{(1)}_t,\;\; \rho^{(L)}_t,\;\; \varrho_t}_{\text{dynamic convergence signals}}
+\;\bigr)\;\in\;[0,1]^{9},
+\label{eq:state}
+\end{equation}
+where every component is normalised to $[0,1]$ to aid optimisation. The four
+\emph{static} descriptors identify the problem: $a=\mathrm{idx}(\mathtt{alg})/(A-1)$
+and $b=\mathrm{idx}(\mathtt{bk})/(K-1)$ are integer encodings of the algorithm and
+backend over the $A$ algorithms and $K$ backends seen in training, $n/15$ is the
+circuit size, and $N_t/\mathcal{B}$ is a coarse progress bar. They let the agent
+recognise the \emph{kind} of circuit it faces and how much budget it has spent.
+
+The five \emph{dynamic} signals, recomputed after every batch, let it perceive
+in real time how close $\hat{P}_t$ is to stabilising. With outcome probabilities
+$\hat{P}_t(x)=\mathrm{count}_t(x)/N_t$, we use:
+\begin{align}
+\tilde{H}_t &= \frac{1}{n}\Bigl(-\!\!\sum_{x}\hat{P}_t(x)\log_2 \hat{P}_t(x)\Bigr),
+  & &\text{(Shannon entropy, normalised by $n$ bits)} \label{eq:entropy}\\
+C_t &= \sum_{x}\hat{P}_t(x)^2,
+  & &\text{(concentration / collision probability)} \label{eq:conc}\\
+\rho^{(\ell)}_t &= \mathrm{TVD}\!\bigl(\hat{P}_t,\hat{P}_{t-\ell}\bigr)
+  = \tfrac{1}{2}\!\sum_{x}\bigl|\hat{P}_t(x)-\hat{P}_{t-\ell}(x)\bigr|,
+  & &\ell\in\{1,L\},\;\; L=10, \label{eq:rate}\\
+\varrho_t &= \min\!\bigl(N_t/(1500\,n),\,1\bigr).
+  & &\text{(size-relative progress)} \label{eq:relprog}
+\end{align}
+The entropy~\eqref{eq:entropy} discriminates peaked from flat output
+distributions (and is divided by $n$ rather than a constant so it does not
+saturate on wide circuits), while the concentration~\eqref{eq:conc} gives a
+scale-free measure of peakedness that complements it. The two
+rate-of-change signals~\eqref{eq:rate} are the heart of the panel: $\rho^{(1)}_t$
+compares the cumulative distribution to that one batch earlier, and
+$\rho^{(L)}_t$ to that $L=10$ batches earlier. The latter is exactly the
+lag-$\ell$ diminishing-returns proxy that underlies the Oracle of
+Eq.~\eqref{eq:oracle}, so the agent can observe the very quantity its reward is
+defined against, while $\rho^{(1)}_t$ supplies a shorter, noisier view. Finally,
+the size-relative progress~\eqref{eq:relprog} normalises the shot count by a
+size-dependent budget heuristic ($1500\,n$), letting the agent distinguish early
+statistical noise from genuine late convergence on circuits whose
+diminishing-returns point scales with $n$.
 
 \subsection{Actions and Episode Dynamics}
 
@@ -280,49 +386,46 @@ deliberately \emph{asymmetric}, reflecting that the two failure modes are not
 equally harmful: under-sampling yields statistically invalid results, whereas
 over-sampling merely wastes resources. Moreover, it is \emph{precision-shaped}:
 the maximum reward is granted on a small overshoot plateau, making a slight
-overshoot -- rather than a knife-edge perfect stop -- the optimum under
+overshoot, rather than a knife-edge perfect stop, the optimum under
 stochastic observations. Let $\text{error} = n_{\text{agent}} - n^{\star}$ and
-let $m = \max(50,\, 0.03\,n^{\star})$ be the relative plateau margin. Then
+let $m = 200$ shots be the overshoot plateau margin. Then
 \begin{equation}
   R_{\text{term}} =
   \begin{cases}
     \bigl(\beta - \tfrac{|\text{error}|}{n^{\star}}\bigr)\,\sigma,
       & \text{error} < 0 \quad (\text{undershoot}),\\[4pt]
-    \exp\!\bigl(-4\,\tfrac{\max(0,\,\text{error}-m)}{n^{\star}}\bigr),
+    \exp\!\bigl(-\lambda\,\tfrac{\max(0,\,\text{error}-m)}{n^{\star}}\bigr),
       & \text{error} \ge 0 \quad (\text{overshoot}),
   \end{cases}
   \label{eq:reward}
 \end{equation}
-where $\sigma = 1 + 0.5\,n^{\star}/\mathcal{B}$ scales the penalty with problem
-difficulty and $\beta = -1.85$ for easy instances ($n^{\star} \le 5{,}000$) or
-$\beta = -2.5$ for hard ones. Overshooting earns the full reward within the
-margin and then decays \emph{relative to the Oracle value}, so a fixed absolute
+with decay rate $\lambda = 2$, where $\sigma = 1 + 0.5\,n^{\star}/\mathcal{B}$
+scales the penalty with problem difficulty and $\beta = -1.85$ for \emph{small}
+instances ($n^{\star} \le 5{,}000$) or $\beta = -2.5$ for \emph{big} ones.
+Overshooting earns the full reward anywhere in the plateau $[0,m]$ and then
+decays \emph{relative to the Oracle value} $n^{\star}$, so a fixed absolute
 overshoot is punished hard on cheap circuits but tolerated on expensive ones.
 Undershooting is treated as a categorical failure with a large negative reward.
-Finally, if termination is \emph{forced} by budget exhaustion beyond the margin,
-the positive reward is halved, so that riding the execution to the budget cap is
-never a comfortable substitute for an explicit stopping decision. This asymmetry
-instils a principled safety-first bias while still pulling the policy toward the
-diagonal.
+This asymmetry instils a principled safety-first bias while still pulling the
+policy toward the diagonal.
 
 \subsection{Network and Learning Algorithm}
 
 The action-value function is approximated by a multi-layer perceptron with input
-dimension $10$, three hidden layers of $512$, $256$, and $128$ ReLU units (with
-$10\%$ dropout after the first two for regularisation; dropout is disabled
-during action selection so that the greedy policy is deterministic), and a
-two-unit linear output giving $Q(s,\textsc{continue})$ and $Q(s,\textsc{stop})$.
-Training follows Double DQN~\cite{vanhasselt2016double}: the online network
-selects the bootstrap action and the target network evaluates it, removing the
-max-operator overestimation bias that would otherwise inflate
-$Q(s,\textsc{continue})$ and systematically delay stops. We use an
-$\varepsilon$-greedy behaviour policy ($\varepsilon$ decaying per episode from
-$1.0$ to $0.05$), an experience-replay buffer of $200{,}000$ transitions,
-mini-batches of $64$, the Adam optimiser at learning rate $10^{-4}$, a discount
-factor $\gamma = 0.997$, and a target network synchronised every $2{,}000$
-gradient steps. The loss is the Huber (smooth-$\ell_1$) temporal-difference
-error, which keeps the large undershoot penalties from dominating the gradients
-near the stopping boundary.
+dimension $9$ (the state of Eq.~\eqref{eq:state}), three hidden layers of $512$,
+$256$, and $128$ ReLU units (with $10\%$ dropout after the first two for
+regularisation; dropout is disabled during action selection so that the greedy
+policy is deterministic), and a two-unit linear output giving
+$Q(s,\textsc{continue})$ and $Q(s,\textsc{stop})$. Training follows the standard
+DQN target~\cite{mnih2015human}: the bootstrap value at $s_{t+1}$ is the maximum
+target-network $Q$-value, $y_t = r_t + \gamma\,(1-d_t)\max_{a'}Q_{\bar\theta}(s_{t+1},a')$,
+with $d_t$ the terminal flag. We use an $\varepsilon$-greedy behaviour policy
+($\varepsilon$ decaying once per episode from $1.0$ to $0.05$), an
+experience-replay buffer of $200{,}000$ transitions, mini-batches of $64$, the
+Adam optimiser at learning rate $10^{-4}$, a discount factor $\gamma = 0.997$,
+and a target network synchronised every $2{,}000$ gradient steps. The loss is
+the mean-squared temporal-difference error
+$\bigl(y_t - Q_\theta(s_t,a_t)\bigr)^2$.
 
 \subsection{Dataset, Oracle Labels, and Strict Split}
 \label{sec:dataset}
@@ -337,8 +440,8 @@ $n^{\star}$ is precomputed once via Eq.~\eqref{eq:oracle}.
 
 To enable a fair, leakage-free comparison with the state of the art, we reserve
 as the \emph{test set} the exact 36 traces used in the evaluation tables
-of~\cite{bisicchia2026shots} (18 small circuits with $n<10$, 18 large with
-$n\ge 10$). All remaining 828 traces (after excluding the
+of a recent study~\cite{bisicchia2026shots} (18 \emph{small} circuits with
+$n<10$, 18 \emph{big} with $n\ge 10$). All remaining 828 traces (after excluding the
 \texttt{grover-noancilla} variants) form the \emph{training/validation} pool;
 the agent never observes a test trace during training. Because outcomes are
 sampled stochastically, even a fixed (deterministic, argmax) policy produces a
@@ -355,11 +458,11 @@ during training.}
 \label{fig:overview}
 \end{figure}
 
-A practical challenge is the heavy skew of the dataset toward ``easy'' instances
-that converge with few shots. We address this with a configurable training
-distribution (\emph{AgentType}): the \textsc{generic} agent studied here trains
-on a balanced 50/50 mix of easy ($n<10$) and hard ($n\ge10$) problems, so it is
-exposed to the full spectrum of convergence behaviours.
+A practical challenge is the heavy skew of the dataset toward \emph{small}
+instances that converge with few shots. We address this with a configurable
+training distribution (\emph{AgentType}): the \textsc{generic} agent studied
+here trains on a balanced 50/50 mix of small ($n<10$) and big ($n\ge10$)
+problems, so it is exposed to the full spectrum of convergence behaviours.
 
 \section{Development and Experimental Setup}
 \label{sec:setup}
@@ -368,34 +471,42 @@ exposed to the full spectrum of convergence behaviours.
 and network use PyTorch~\cite{paszke2019pytorch}; the environment implements the
 OpenAI Gym interface~\cite{brockman2016gym}; QSimBench supplies the circuit
 traces and noise profiles. The full source code, oracle cache, and evaluation
-scripts accompany this paper.
+scripts are released as open
+source.\footnote{Anonymised for double-blind review:
+\url{https://anonymous.4open.science/r/drl-shot-allocation}; the de-anonymised
+repository link will be provided in the camera-ready version.}
 
 \paragraph{Training regimen.} Each agent is trained from scratch with a fixed
-random seed for reproducibility. Validation for model selection uses a held-out
-$20\%$ split of the training pool (disjoint from the 36 test traces). The
-production agent is trained for $2{,}000$ episodes; from episode $800$ onward
-the model is checkpointed every $100$ episodes by lowest validation Mean
-Absolute Error (MAE), with early stopping (patience $5$), and the
-best-validation weights are restored at the end. Because quantum sampling makes
-single-pass validation noisy, each validation score is averaged over three
-passes of the entire validation set, de-noising model selection. An exploratory
-long-horizon run motivated this design: training exhibits an initial
-conservative ``stop early'' phase, a breakthrough in which the MAE drops sharply
-as circuit-specific stopping behaviour emerges, and ultimately an overfitting
-regime of hyper-conservative maximum-budget stops -- checkpoint-based selection
-on de-noised validation MAE retains the policy from the sweet spot between these
-extremes.
+random seed for reproducibility. The production \textsc{generic} agent is
+trained for $1{,}000$ episodes, with the $\varepsilon$-greedy exploration rate
+decaying once per episode (Section~\ref{sec:method}).
+
+\paragraph{Model selection.} Choosing \emph{which} checkpoint to deploy is itself
+a decision driven by the data, and we make it explicit. We hold out a
+\emph{validation} set: a $20\%$ split of the training pool, disjoint from the 36
+test traces and stratified by Oracle difficulty so that it mirrors the
+distribution the agent trains on. From episode $400$ onward the model is
+checkpointed every $100$ episodes and scored on this set by Mean Absolute Error
+(MAE) in shots; we keep the lowest-MAE checkpoint, apply early stopping with
+patience $5$, and restore the best-validation weights at the end. Because quantum
+sampling makes a single validation pass noisy, each checkpoint's score is
+averaged over \emph{three} stochastic passes of the whole validation set, which
+materially de-noises the selection. This protocol is motivated by the shape of
+the learning curve observed in an exploratory long-horizon run: training passes
+through an initial conservative ``stop-early'' phase, then a breakthrough in
+which the MAE drops sharply as circuit-specific stopping behaviour emerges, and
+finally an overfitting regime of hyper-conservative maximum-budget stops.
+De-noised, validation-MAE checkpointing retains the policy from the sweet spot
+between these extremes rather than the final (degraded) weights.
 
 \paragraph{Evaluation protocol.} The selected agent is evaluated on the 36
-held-out traces with a deterministic (greedy) policy, with one refinement:
-\textsc{stop} is executed only after two \emph{consecutive} greedy
-\textsc{stop} decisions (stability voting), so that a single noisy state cannot
-trigger a premature stop. To capture the stochasticity of quantum sampling we
-run a \emph{multi-run} evaluation: the agent is replayed $N$ times per trace,
-and we report, per problem, the mean and standard deviation of the shots used
-and of the resulting deviation from the Oracle. The headline metric is the
-absolute deviation $|n_{\text{agent}}-n^{\star}|$ in shots; we also report it as
-a percentage of the budget $\mathcal{B}$.
+held-out traces with a deterministic (greedy, $\arg\max_a Q$) policy. To capture
+the stochasticity of quantum sampling we run a \emph{multi-run} evaluation: the
+agent is replayed $N$ times per trace, and we report, per problem, the mean and
+standard deviation of the shots used and of the resulting deviation from the
+Oracle. The headline metric is the absolute deviation
+$|n_{\text{agent}}-n^{\star}|$ in shots; we also report it as a percentage of the
+budget $\mathcal{B}$.
 
 \section{Results}
 \label{sec:results}
@@ -408,7 +519,7 @@ MAE undergoes the sharp breakthrough decline described above, confirming that
 the learning is productive rather than a mere reward artefact. Because outcomes
 are stochastic and the test circuits are unseen, the agent cannot memorise a
 scalar shot count; to stop well it must interpret the dynamic state features --
-chiefly entropy, the lag-based rates of change, and the convergence streak -- to
+chiefly entropy, the concentration, and the two lag-based rates of change, to
 locate the point of stability.
 
 \begin{figure}[t]
@@ -423,13 +534,18 @@ the distribution of stopping errors.}
 Figure~\ref{fig:scatter} plots, for each held-out trace, the shots chosen by the
 agent against the Oracle optimum. Points on the diagonal denote perfect stops,
 points above denote (safe) overshooting, and points below denote (risky)
-undershooting. The agent tracks the Oracle closely across the whole difficulty
-spectrum, with a mean absolute deviation of $1{,}154$ shots ($5.8\%$ of the
-budget), and it rarely undershoots ($2$ of $36$ traces). The residual error
-concentrates on the hardest instances, where the
-Oracle lies close to the budget: there the agent often runs the execution to the
-budget ceiling rather than stopping just short of it -- a safe but slightly
-wasteful behaviour that constitutes the main remaining source of error.
+undershooting. The agent tracks the Oracle across the whole difficulty
+spectrum, with a mean absolute deviation of $2{,}049$ shots ($10.2\%$ of the
+budget), and it rarely undershoots ($3$ of $36$ traces, each by at most $200$
+shots). Notably, the deviation is roughly balanced between the small and big
+halves of the test set (mean MAE $2{,}108$ vs.\ $1{,}989$), and on the largest,
+near-budget circuits (12--14-qubit \texttt{qft}/\texttt{random}, whose Oracle
+already sits at $15$--$18$k shots) the agent stops within a few hundred shots of
+the optimum. The residual error instead concentrates on \emph{mid-range}
+instances (small-to-moderate Oracle values on $6$--$8$-qubit
+\texttt{qaoa}/\texttt{qft}/\texttt{qnn} circuits), where the agent is
+over-conservative and keeps sampling well past the diminishing-returns point,
+spending two to four times the optimal shot count.
 
 \begin{figure}[t]
 \centering
@@ -455,14 +571,14 @@ Two findings stand out. First, the learned agent is overwhelmingly more
 efficient than the a-priori bounds: Weissman and Hoeffding overshoot the Oracle
 by roughly two and seven \emph{orders of magnitude} respectively, because they
 must hold for the worst case over all distributions, whereas the agent adapts to
-the observed statistics. Second, the agent now \emph{outperforms} two of the
-three divergence-based online policies -- its mean deviation of $1{,}154$ shots
-is $2.3\times$ lower than \mbox{Inc-Hell} ($2{,}706$) and $2.9\times$ lower than
-\mbox{Inc-JS} ($3{,}336$) -- and comes within $\approx 280$ shots ($1.4\%$ of
-the budget) of the strongest baseline, \mbox{Inc-TVD} ($871$), which was
-selected from an exhaustive grid of hand-tuned configurations specifically for
-this metric. The agent achieves this \emph{without} any hand-crafted stopping
-rule, learning the stopping logic purely from data.
+the observed statistics. Second, the agent \emph{outperforms} two of the three divergence-based online
+policies: its mean deviation of $2{,}049$ shots is $1.3\times$ lower than
+\mbox{Inc-Hell} ($2{,}706$) and $1.6\times$ lower than \mbox{Inc-JS}
+($3{,}336$). A gap of $\approx 1{,}180$ shots ($5.9\%$ of the budget)
+remains to the strongest baseline, \mbox{Inc-TVD} ($871$), which was selected
+from an exhaustive grid of hand-tuned configurations specifically for this
+metric. The agent achieves this \emph{without} any hand-crafted stopping rule,
+learning the stopping logic purely from data.
 
 \medskip
 \noindent\textit{Note on reproducibility of the reported numbers.} The DRL
@@ -485,15 +601,18 @@ is learned from the Oracle's signal rather than hard-coded, swapping the Oracle'
 divergence (TVD $\to$ Hellinger/JS) only requires retraining, not redesign.
 
 \paragraph{Limitations.} The agent does not yet outperform the best online
-heuristic, and its dominant error mode is conservative \emph{overshooting on the
-hardest, near-budget circuits}: when the correct stop lies close to the budget,
-the agent often rides the execution to the cap instead of committing to a stop
-just short of it, despite the explicit forced-termination penalty. A few
-mid-range hard instances (notably 12--14-qubit QAOA) are also overshot
-substantially. Undershooting -- the scientifically dangerous failure mode -- is
-nearly eliminated. These observations point to the cap-region reward shaping and
-to richer near-budget convergence descriptors as the primary levers for closing
-the residual gap with \mbox{Inc-TVD}.
+heuristic, and its dominant error mode is conservative \emph{overshooting on
+mid-range circuits}: on $6$--$8$-qubit \texttt{qaoa}/\texttt{qft}/\texttt{qnn}
+instances whose diminishing-returns point lies a few thousand shots in, the
+agent keeps sampling and stops two to four times too late. By contrast, it
+handles both extremes well: trivially short circuits and the largest,
+near-budget circuits are stopped tightly. Undershooting, the scientifically
+dangerous failure mode, is nearly eliminated ($3/36$, each within $200$ shots).
+The over-conservatism is consistent with a value function that overestimates the
+return of continuing; this points to two levers for closing the residual gap
+with \mbox{Inc-TVD}: sharper reward shaping in the mid-range, and richer
+mid-range convergence descriptors (e.g.\ an explicit convergence-streak feature
+and overestimation-robust value learning) that we leave to future work.
 
 \section{Threats to Validity}
 \label{sec:threats}
@@ -513,24 +632,26 @@ remains future work.
 
 We presented a Deep Reinforcement Learning approach to adaptive shot allocation
 that learns, under a strict black-box assumption, when to stop sampling a quantum
-circuit. Framed as a Markov Decision Process with a ten-feature state and a
-precision-shaped, safety-oriented asymmetric reward, a Double DQN learns a
-stopping policy that generalises to unseen circuit families, dramatically
-outperforms a-priori concentration bounds, surpasses two of the three
-purpose-built online heuristics, and approaches the strongest hand-tuned one --
-all without encoding any explicit convergence test. This establishes that
-black-box shot allocation is learnable.
+circuit. Framed as a Markov Decision Process with a nine-feature state and a
+precision-shaped, safety-oriented asymmetric reward, a DQN learns a stopping
+policy that generalises to unseen circuit families, dramatically outperforms
+a-priori concentration bounds, and surpasses two of the three purpose-built
+online heuristics, all without encoding any explicit convergence test, and it
+yields a lightweight policy network deployable as an online, black-box
+\emph{shot-allocation service}. This establishes that black-box shot allocation
+is learnable.
 
-Future work targets the remaining gap with the best online policy: refining the
-cap-region reward to better handle near-budget hard instances, enriching the
-state with additional convergence descriptors, exploring distributional RL
-variants, evaluating mean$\pm$std over ten runs of the selected agent, and
-ultimately validating on live quantum hardware and extending the formulation
-toward variational workloads.
+Future work targets the remaining gap with the best online policy: sharper
+reward shaping for the mid-range circuits the agent currently over-samples,
+enriching the state with additional convergence descriptors, overestimation-robust
+value learning (e.g.\ Double DQN) and distributional RL variants, evaluating
+mean$\pm$std over ten runs of the selected agent, and ultimately validating on
+live quantum hardware and extending the formulation toward variational
+workloads.
 
 \subsubsection*{Acknowledgements.} This work builds on the QSimBench benchmark
-and the \textsc{IncrementalExecution} framework developed at the University of
-Pisa.
+and the \textsc{IncrementalExecution} framework for the point of diminishing
+returns~\cite{bisicchia2026shots}.
 
 \bibliographystyle{splncs04}
 \bibliography{references}

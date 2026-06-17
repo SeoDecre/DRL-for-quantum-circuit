@@ -9,7 +9,7 @@
 \toprule
 Method & Mean $|$shots $-$ Oracle$|$ \\
 \midrule
-\textbf{DRL agent (ours)} & \textbf{1{,}154} \\
+\textbf{DRL agent (ours)} & \textbf{2{,}049} \\
 Inc-TVD \cite{bisicchia2026shots}   & 871 \\
 Inc-Hellinger \cite{bisicchia2026shots} & 2{,}706 \\
 Inc-JS \cite{bisicchia2026shots}    & 3{,}336 \\
@@ -23,30 +23,30 @@ Hoeffding bound \cite{hoeffding1963} & $1.28e{+}10$ \\
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
-\caption{Per-trace shot counts on the \emph{small} circuits ($n<10$): a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), and the online Inc-* policies / a-priori Weissman bound of Bisicchia et al.~\cite{bisicchia2026shots} at $\delta=0.10$.}
+\caption{Per-trace shot counts on the \emph{small} circuits ($n<10$): a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), and the online Inc-* policies / a-priori Weissman bound of the reference framework~\cite{bisicchia2026shots} at $\delta=0.10$.}
 \label{tab:pertrace-small}
 \begin{tabular}{lccrrrrr}
 \toprule
 Trace & $n$ & Oracle & DRL (ours) & Inc-TVD & Inc-Hell & Inc-JS & Weissman \\
 \midrule
-dj\_4\_FEZ & 4 & 50 & 150 & 150 & 700 & 700 & 705 \\
-dj\_4\_TOR & 4 & 50 & 150 & 150 & 550 & 500 & 705 \\
-qaoa\_4\_SHE & 4 & 150 & 650 & 150 & 1300 & 900 & 705 \\
-qaoa\_6\_MAR & 6 & 650 & 1{,}400 & 1450 & 1950 & 2400 & 2{,}368 \\
-qft\_6\_TOR & 6 & 850 & 1{,}700 & 2050 & 1950 & 2600 & 2{,}368 \\
-qft\_6\_FEZ & 6 & 1000 & 1{,}900 & 1750 & 1800 & 2500 & 2{,}368 \\
-random\_6\_FEZ & 6 & 600 & 1{,}550 & 1700 & 1800 & 2600 & 2{,}368 \\
-vqe\_6\_KYI & 6 & 50 & 150 & 150 & 1450 & 1500 & 2{,}368 \\
-dj\_8\_MAR & 8 & 50 & 150 & 150 & 1400 & 2000 & 9{,}023 \\
-dj\_8\_FEZ & 8 & 100 & 150 & 550 & 2300 & 1900 & 9{,}023 \\
-qaoa\_8\_SHE & 8 & 1700 & 2{,}000 & 2300 & 4150 & 4600 & 9{,}023 \\
-qaoa\_8\_KYI & 8 & 2000 & 2{,}100 & 2350 & 4150 & 5400 & 9{,}023 \\
-qft\_8\_FEZ & 8 & 3300 & 3{,}000 & 3650 & 3300 & 4900 & 9{,}023 \\
-qft\_8\_TOR & 8 & 3600 & 3{,}050 & 3500 & 3350 & 4800 & 9{,}023 \\
-qnn\_8\_FEZ & 8 & 2550 & 2{,}550 & 3100 & 3700 & 5000 & 9{,}023 \\
-qnn\_8\_KYI & 8 & 3150 & 2{,}900 & 3550 & 3500 & 4500 & 9{,}023 \\
-random\_8\_FEZ & 8 & 2750 & 2{,}350 & 3100 & 3600 & 5300 & 9{,}023 \\
-vqe\_8\_KYI & 8 & 200 & 600 & 1100 & 2700 & 2700 & 9{,}023 \\
+dj\_4\_FEZ & 4 & 50 & 50 & 150 & 700 & 700 & 705 \\
+dj\_4\_TOR & 4 & 50 & 50 & 150 & 550 & 500 & 705 \\
+qaoa\_4\_SHE & 4 & 150 & 100 & 150 & 1300 & 900 & 705 \\
+qaoa\_6\_MAR & 6 & 650 & 2{,}400 & 1450 & 1950 & 2400 & 2{,}368 \\
+qft\_6\_TOR & 6 & 850 & 4{,}100 & 2050 & 1950 & 2600 & 2{,}368 \\
+qft\_6\_FEZ & 6 & 1000 & 4{,}150 & 1750 & 1800 & 2500 & 2{,}368 \\
+random\_6\_FEZ & 6 & 600 & 2{,}700 & 1700 & 1800 & 2600 & 2{,}368 \\
+vqe\_6\_KYI & 6 & 50 & 50 & 150 & 1450 & 1500 & 2{,}368 \\
+dj\_8\_MAR & 8 & 50 & 50 & 150 & 1400 & 2000 & 9{,}023 \\
+dj\_8\_FEZ & 8 & 100 & 50 & 550 & 2300 & 1900 & 9{,}023 \\
+qaoa\_8\_SHE & 8 & 1700 & 5{,}900 & 2300 & 4150 & 4600 & 9{,}023 \\
+qaoa\_8\_KYI & 8 & 2000 & 5{,}800 & 2350 & 4150 & 5400 & 9{,}023 \\
+qft\_8\_FEZ & 8 & 3300 & 7{,}450 & 3650 & 3300 & 4900 & 9{,}023 \\
+qft\_8\_TOR & 8 & 3600 & 7{,}600 & 3500 & 3350 & 4800 & 9{,}023 \\
+qnn\_8\_FEZ & 8 & 2550 & 6{,}500 & 3100 & 3700 & 5000 & 9{,}023 \\
+qnn\_8\_KYI & 8 & 3150 & 7{,}200 & 3550 & 3500 & 4500 & 9{,}023 \\
+random\_8\_FEZ & 8 & 2750 & 5{,}850 & 3100 & 3600 & 5300 & 9{,}023 \\
+vqe\_8\_KYI & 8 & 200 & 550 & 1100 & 2700 & 2700 & 9{,}023 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -55,30 +55,30 @@ vqe\_8\_KYI & 8 & 200 & 600 & 1100 & 2700 & 2700 & 9{,}023 \\
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
-\caption{Per-trace shot counts on the \emph{large} circuits ($n\ge10$): a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), and the online Inc-* policies / a-priori Weissman bound of Bisicchia et al.~\cite{bisicchia2026shots} at $\delta=0.10$.}
+\caption{Per-trace shot counts on the \emph{big} circuits ($n\ge10$): a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), and the online Inc-* policies / a-priori Weissman bound of the reference framework~\cite{bisicchia2026shots} at $\delta=0.10$.}
 \label{tab:pertrace-large}
 \begin{tabular}{lccrrrrr}
 \toprule
 Trace & $n$ & Oracle & DRL (ours) & Inc-TVD & Inc-Hell & Inc-JS & Weissman \\
 \midrule
-dj\_10\_FEZ & 10 & 100 & 250 & 1600 & 3450 & 4200 & 35{,}600 \\
-dj\_10\_TOR & 10 & 500 & 700 & 2200 & 4450 & 4700 & 35{,}600 \\
-qaoa\_10\_SHE & 10 & 6550 & 7{,}650 & 9950 & 9750 & 11000 & 35{,}600 \\
-qaoa\_12\_MAR & 12 & 7200 & 10{,}750 & 9000 & 14950 & 15900 & $1.42e{+}5$ \\
-qft\_12\_TOR & 12 & 15200 & 20{,}000 & 17200 & 19350 & 20000 & $1.42e{+}5$ \\
-qft\_12\_FEZ & 12 & 15400 & 15{,}200 & 17150 & 18150 & 20000 & $1.42e{+}5$ \\
-random\_12\_FEZ & 12 & 15200 & 16{,}150 & 17100 & 19250 & 20000 & $1.42e{+}5$ \\
-vqe\_12\_KYI & 12 & 550 & 600 & 3400 & 6150 & 7500 & $1.42e{+}5$ \\
-dj\_14\_FEZ & 14 & 500 & 800 & 2450 & 4850 & 5200 & $5.68e{+}5$ \\
-dj\_14\_MAR & 14 & 600 & 700 & 2300 & 5150 & 6200 & $5.68e{+}5$ \\
-qaoa\_14\_KYI & 14 & 13350 & 18{,}500 & 13400 & 20000 & 20000 & $5.68e{+}5$ \\
-qaoa\_14\_SHE & 14 & 14350 & 20{,}000 & 14600 & 20000 & 20000 & $5.68e{+}5$ \\
-qft\_14\_FEZ & 14 & 17750 & 20{,}000 & 17800 & 20000 & 20000 & $5.68e{+}5$ \\
+dj\_10\_FEZ & 10 & 100 & 100 & 1600 & 3450 & 4200 & 35{,}600 \\
+dj\_10\_TOR & 10 & 500 & 600 & 2200 & 4450 & 4700 & 35{,}600 \\
+qaoa\_10\_SHE & 10 & 6550 & 10{,}600 & 9950 & 9750 & 11000 & 35{,}600 \\
+qaoa\_12\_MAR & 12 & 7200 & 12{,}650 & 9000 & 14950 & 15900 & $1.42e{+}5$ \\
+qft\_12\_TOR & 12 & 15200 & 16{,}350 & 17200 & 19350 & 20000 & $1.42e{+}5$ \\
+qft\_12\_FEZ & 12 & 15400 & 15{,}700 & 17150 & 18150 & 20000 & $1.42e{+}5$ \\
+random\_12\_FEZ & 12 & 15200 & 15{,}000 & 17100 & 19250 & 20000 & $1.42e{+}5$ \\
+vqe\_12\_KYI & 12 & 550 & 2{,}000 & 3400 & 6150 & 7500 & $1.42e{+}5$ \\
+dj\_14\_FEZ & 14 & 500 & 1{,}150 & 2450 & 4850 & 5200 & $5.68e{+}5$ \\
+dj\_14\_MAR & 14 & 600 & 2{,}100 & 2300 & 5150 & 6200 & $5.68e{+}5$ \\
+qaoa\_14\_KYI & 14 & 13350 & 17{,}400 & 13400 & 20000 & 20000 & $5.68e{+}5$ \\
+qaoa\_14\_SHE & 14 & 14350 & 18{,}350 & 14600 & 20000 & 20000 & $5.68e{+}5$ \\
+qft\_14\_FEZ & 14 & 17750 & 19{,}600 & 17800 & 20000 & 20000 & $5.68e{+}5$ \\
 qft\_14\_TOR & 14 & 17750 & 20{,}000 & 17750 & 20000 & 20000 & $5.68e{+}5$ \\
-qnn\_14\_FEZ & 14 & 17600 & 20{,}000 & 17700 & 20000 & 20000 & $5.68e{+}5$ \\
-qnn\_14\_KYI & 14 & 17700 & 20{,}000 & 17750 & 20000 & 20000 & $5.68e{+}5$ \\
-random\_14\_FEZ & 14 & 17700 & 20{,}000 & 17800 & 20000 & 20000 & $5.68e{+}5$ \\
-vqe\_14\_KYI & 14 & 2600 & 1{,}450 & 4500 & 11150 & 14000 & $5.68e{+}5$ \\
+qnn\_14\_FEZ & 14 & 17600 & 19{,}300 & 17700 & 20000 & 20000 & $5.68e{+}5$ \\
+qnn\_14\_KYI & 14 & 17700 & 19{,}950 & 17750 & 20000 & 20000 & $5.68e{+}5$ \\
+random\_14\_FEZ & 14 & 17700 & 18{,}900 & 17800 & 20000 & 20000 & $5.68e{+}5$ \\
+vqe\_14\_KYI & 14 & 2600 & 6{,}250 & 4500 & 11150 & 14000 & $5.68e{+}5$ \\
 \bottomrule
 \end{tabular}
 \end{table}
