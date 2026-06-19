@@ -56,7 +56,7 @@ of shots, when enough have been collected. The service operates under a fully
 black-box assumption, making no use of the circuit structure or the backend
 noise model. Its stopping logic is not hand-coded but \emph{learned}: we frame
 adaptive shot allocation as a Markov Decision Process and train a Deep Q-Network
-that, at every batch, observes a nine-feature ``instrument panel'' of the running
+that, at every batch, observes a nine-feature state summarising the running
 empirical distribution and decides whether to continue or to stop. The learner is
 rewarded against an a-posteriori optimal shot count derived from the point of
 diminishing returns, through a precision-shaped asymmetric reward that makes a
@@ -134,13 +134,13 @@ decision that the deployed service performs.
   Markov Decision Process solved by a Deep Q-Network (DQN) that decides, batch by
   batch, whether to continue executing or to stop, using only a compact black-box
   view of the running empirical distribution (Section~\ref{sec:method}).
-  \item We design a nine-feature state representation (an ``instrument
-  panel'' combining static problem descriptors with dynamic convergence signals
-  built on the same diminishing-returns proxy that defines the Oracle) together
+  \item We design a nine-feature state representation combining static problem
+  descriptors with dynamic convergence signals built on the same
+  diminishing-returns proxy that defines the Oracle, together
   with a precision-shaped asymmetric reward that encodes the domain-specific
   asymmetry between under- and over-sampling (Section~\ref{sec:method}).
   \item We train and evaluate the agent on QSimBench~\cite{qsimbench} under a
-  strict no-leakage split, holding out the exact 36 benchmark traces used in the
+  strict split, holding out the exact 36 benchmark traces used in the
   evaluation of a recent state-of-the-art study~\cite{bisicchia2026shots}, and
   we compare the learned policy against five reference methods on identical
   traces (Sections~\ref{sec:setup}--\ref{sec:results}).
@@ -181,13 +181,37 @@ of~\cite{bisicchia2026shots} with the Total Variation Distance (TVD), as our
 scored. Throughout, we fix $\mathcal{B}=20{,}000$ shots, a batch size of $50$,
 and $\delta=0.10$.
 
+\subsection{Background: Reinforcement Learning and Deep Q-Networks}
+\label{sec:background-dl}
+
+Reinforcement learning (RL) models an agent that interacts with an environment
+over discrete steps, choosing actions to maximise a cumulative
+reward~\cite{sutton2018reinforcement}. The interaction is formalised as a
+\emph{Markov Decision Process} (MDP) $(\mathcal{S},\mathcal{A},P,r,\gamma)$:
+at step $t$ the agent observes a state $s_t\in\mathcal{S}$, takes an action
+$a_t\in\mathcal{A}$, receives a reward $r_t$, and transitions to $s_{t+1}$
+according to $P$. The goal is a policy $\pi$ maximising the expected discounted
+return $\mathbb{E}\bigl[\sum_{k\ge 0}\gamma^{k} r_{t+k}\bigr]$, where
+$\gamma\in[0,1)$ trades off immediate against future reward.
+
+Q-learning~\cite{watkins1992qlearning} estimates the optimal action-value
+function $Q^{\star}(s,a)$, the expected return of taking action $a$ in state $s$
+and acting optimally thereafter, via the Bellman target
+$y_t = r_t + \gamma\max_{a'}Q(s_{t+1},a')$. When the state space is large or
+continuous, the lookup table is replaced by a neural function approximator
+$Q(s,a;\theta)$, yielding the Deep Q-Network (DQN)~\cite{mnih2015human}, trained
+by minimising the temporal-difference error $\bigl(y_t-Q(s_t,a_t;\theta)\bigr)$.
+Two devices stabilise the otherwise unstable bootstrap of a function
+approximator on its own predictions: \emph{experience replay}, which trains on
+random mini-batches drawn from a buffer of past transitions to break temporal
+correlations, and a periodically synchronised \emph{target network}, a frozen
+copy of $\theta$ used to compute $y_t$.
+
 \subsection{Related Work: Shot-Optimisation Strategies}
 \label{sec:relwork}
 
 Existing shot-optimisation methods for quantum circuits fall into four families,
-which we review here and contrast with the present work; the deep-learning
-machinery our agent builds on is deferred to the background
-in~Section~\ref{sec:background-dl}.
+which we review here and contrast with the present work.
 
 \paragraph{A-priori concentration bounds.} Hoeffding-style~\cite{hoeffding1963}
 and Weissman-style~\cite{weissman2003inequalities} inequalities provide
@@ -250,34 +274,6 @@ according to the divergence used) constitute the strongest baselines for static
 circuits. Our work keeps the same black-box assumption but replaces the
 hand-crafted, grid-tuned stopping rule with a \emph{learned} one, turning a
 fixed convergence test into a trainable decision policy.
-
-\subsection{Background: Reinforcement Learning and Deep Q-Networks}
-\label{sec:background-dl}
-
-Reinforcement learning (RL) models an agent that interacts with an environment
-over discrete steps, choosing actions to maximise a cumulative
-reward~\cite{sutton2018reinforcement}. The interaction is formalised as a
-\emph{Markov Decision Process} (MDP) $(\mathcal{S},\mathcal{A},P,r,\gamma)$:
-at step $t$ the agent observes a state $s_t\in\mathcal{S}$, takes an action
-$a_t\in\mathcal{A}$, receives a reward $r_t$, and transitions to $s_{t+1}$
-according to $P$. The goal is a policy $\pi$ maximising the expected discounted
-return $\mathbb{E}\bigl[\sum_{k\ge 0}\gamma^{k} r_{t+k}\bigr]$, where
-$\gamma\in[0,1)$ trades off immediate against future reward.
-
-Q-learning~\cite{watkins1992qlearning} estimates the optimal action-value
-function $Q^{\star}(s,a)$, the expected return of taking action $a$ in state $s$
-and acting optimally thereafter, via the Bellman target
-$y_t = r_t + \gamma\max_{a'}Q(s_{t+1},a')$. When the state space is large or
-continuous, the lookup table is replaced by a neural function approximator
-$Q(s,a;\theta)$, yielding the Deep Q-Network (DQN)~\cite{mnih2015human}, trained
-by minimising the temporal-difference error $\bigl(y_t-Q(s_t,a_t;\theta)\bigr)$.
-Two devices stabilise the otherwise unstable bootstrap of a function
-approximator on its own predictions: \emph{experience replay}, which trains on
-random mini-batches drawn from a buffer of past transitions to break temporal
-correlations, and a periodically synchronised \emph{target network}, a frozen
-copy of $\theta$ used to compute $y_t$. We adopt this well-established machinery
-as the learning backbone, with the network itself being a standard multi-layer
-perceptron of ReLU units (Section~\ref{sec:method}).
 
 \section{Method}
 \label{sec:method}
@@ -391,7 +387,7 @@ deployed as an online service.}
 At step $t$ the agent has executed $N_t = 50\,t$ shots of an instance
 $(\mathtt{alg},n,\mathtt{bk})$ (algorithm, number of qubits, and backend)
 and holds the cumulative empirical distribution $\hat{P}_t$ over observed
-outcomes. The state is an ``instrument panel''
+outcomes. The state is the nine-component vector
 \begin{equation}
 \mathbf{s}_t = \bigl(\;
   \underbrace{a,\;\; n/15,\;\; b,\;\; N_t/\mathcal{B}}_{\text{static descriptors}},\;\;
@@ -424,7 +420,7 @@ The entropy~\eqref{eq:entropy} discriminates peaked from flat output
 distributions (and is divided by $n$ rather than a constant so it does not
 saturate on wide circuits), while the concentration~\eqref{eq:conc} gives a
 scale-free measure of peakedness that complements it. The two
-rate-of-change signals~\eqref{eq:rate} are the heart of the panel: $\rho^{(1)}_t$
+rate-of-change signals~\eqref{eq:rate} are the heart of the state: $\rho^{(1)}_t$
 compares the cumulative distribution to that one batch earlier, and
 $\rho^{(L)}_t$ to that $L=10$ batches earlier. The latter is exactly the
 lag-$\ell$ diminishing-returns proxy that underlies the Oracle of
@@ -435,17 +431,13 @@ size-dependent budget heuristic ($1500\,n$), letting the agent distinguish early
 statistical noise from genuine late convergence on circuits whose
 diminishing-returns point scales with $n$.
 
-\subsection{Actions and Episode Dynamics}
+\subsection{Actions, Episodes, and Reward}
 
 The action space is binary: \textsc{continue} executes one more batch of $50$
 shots and updates the state; \textsc{stop} terminates the episode. An episode
 also terminates automatically if the budget $\mathcal{B}$ is exhausted. On
 termination the environment compares the agent's total shot count to the Oracle's
-$n^{\star}$ and emits the terminal reward.
-
-\subsection{Reward Design}
-
-The learning signal is a single terminal reward (intermediate \textsc{continue}
+$n^{\star}$ and emits a single terminal reward (intermediate \textsc{continue}
 steps carry no immediate reward; the pressure toward efficiency comes from
 discounting and from the decay of the terminal reward). The terminal reward is
 deliberately \emph{asymmetric}, reflecting that the two failure modes are not
@@ -532,6 +524,10 @@ problems, so it is exposed to the full spectrum of convergence behaviours.
 
 \section{Development and Experimental Setup}
 \label{sec:setup}
+
+We adopt the well-established DQN machinery (Section~\ref{sec:background-dl}) as
+the learning backbone, with the network itself being a standard multi-layer
+perceptron of ReLU units (Section~\ref{sec:method}).
 
 \paragraph{Implementation.} The system is implemented in Python~3.12. The agent
 and network use PyTorch~\cite{paszke2019pytorch}; the environment implements the
@@ -646,15 +642,6 @@ from an exhaustive grid of hand-tuned configurations specifically for this
 metric. The agent achieves this \emph{without} any hand-crafted stopping rule,
 learning the stopping logic purely from data.
 
-\medskip
-\noindent\textit{Note on reproducibility of the reported numbers.} The DRL
-columns in Tables~\ref{tab:aggregate}--\ref{tab:pertrace-large} are produced by
-the script \texttt{make\_tables.py}, which merges the agent's multi-run
-evaluation with the reference values. The values shown correspond to the current
-single-run evaluation; the camera-ready version will report the mean$\pm$std over
-ten independent evaluation runs of the selected best agent, regenerated by the
-same script.
-
 \subsection{Discussion}
 
 \paragraph{Strengths.} (i)~\emph{Black-box generality}: the policy is driven only
@@ -680,10 +667,7 @@ with \mbox{Inc-TVD}: sharper reward shaping in the mid-range, and richer
 mid-range convergence descriptors (e.g.\ an explicit convergence-streak feature
 and overestimation-robust value learning) that we leave to future work.
 
-\section{Threats to Validity}
-\label{sec:threats}
-
-\emph{Construct validity.} We score against an a-posteriori Oracle rather than the
+\paragraph{Threats to validity.} \emph{Construct validity.} We score against an a-posteriori Oracle rather than the
 inaccessible true distribution; this is the same principled reference used by the
 state of the art~\cite{bisicchia2026shots}, and we use the identical $\delta$,
 budget, and batch size for comparability. \emph{Internal validity.} Quantum
@@ -710,14 +694,9 @@ is learnable.
 Future work targets the remaining gap with the best online policy: sharper
 reward shaping for the mid-range circuits the agent currently over-samples,
 enriching the state with additional convergence descriptors, overestimation-robust
-value learning (e.g.\ Double DQN) and distributional RL variants, evaluating
-mean$\pm$std over ten runs of the selected agent, and ultimately validating on
-live quantum hardware and extending the formulation toward variational
-workloads.
-
-\subsubsection*{Acknowledgements.} This work builds on the QSimBench benchmark
-and the \textsc{IncrementalExecution} framework for the point of diminishing
-returns~\cite{bisicchia2026shots}.
+value learning (e.g.\ Double DQN) and distributional RL variants, and ultimately
+validating on live quantum hardware and extending the formulation toward
+variational workloads.
 
 \bibliographystyle{splncs04}
 \bibliography{references}

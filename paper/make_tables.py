@@ -103,6 +103,11 @@ def fmt_drl(mean, std):
             + f"{std:,.0f}".replace(",", "{,}"))
 
 
+def bold(s, on):
+    """Wrap a rendered cell in \\textbf{} when it is the best (closest) value."""
+    return rf"\textbf{{{s}}}" if on else s
+
+
 def main():
     print(f"Using multirun CSV: {MULTIRUN_CSV}")
     sota = parse_sota()
@@ -159,12 +164,18 @@ def main():
     lines.append(r"\toprule")
     lines.append(r"Method & Mean $|$shots $-$ Oracle$|$ \\")
     lines.append(r"\midrule")
-    lines.append(rf"\textbf{{DRL agent (ours)}} & \textbf{{{drl_mae:,.0f}}} \\".replace(",", "{,}"))
-    lines.append(rf"Inc-TVD \cite{{bisicchia2026shots}}   & {agg_tvd:,.0f} \\".replace(",", "{,}"))
-    lines.append(rf"Inc-Hellinger \cite{{bisicchia2026shots}} & {agg_hell:,.0f} \\".replace(",", "{,}"))
-    lines.append(rf"Inc-JS \cite{{bisicchia2026shots}}    & {agg_js:,.0f} \\".replace(",", "{,}"))
-    lines.append(rf"Weissman bound \cite{{weissman2003inequalities}} & {fmt(agg_weiss)} \\")
-    lines.append(rf"Hoeffding bound \cite{{hoeffding1963}} & {fmt(agg_hoeff)} \\")
+    # bold the method whose mean deviation from the Oracle is the lowest (best)
+    agg_vals = {"drl": drl_mae, "tvd": agg_tvd, "hell": agg_hell,
+                "js": agg_js, "weiss": agg_weiss, "hoeff": agg_hoeff}
+    agg_best = min(agg_vals, key=agg_vals.get)
+    def aggnum(x):
+        return f"{x:,.0f}".replace(",", "{,}")
+    lines.append(rf"\textbf{{DRL agent (ours)}} & {bold(aggnum(drl_mae), agg_best=='drl')} \\")
+    lines.append(rf"Inc-TVD \cite{{bisicchia2026shots}}   & {bold(aggnum(agg_tvd), agg_best=='tvd')} \\")
+    lines.append(rf"Inc-Hellinger \cite{{bisicchia2026shots}} & {bold(aggnum(agg_hell), agg_best=='hell')} \\")
+    lines.append(rf"Inc-JS \cite{{bisicchia2026shots}}    & {bold(aggnum(agg_js), agg_best=='js')} \\")
+    lines.append(rf"Weissman bound \cite{{weissman2003inequalities}} & {bold(fmt(agg_weiss), agg_best=='weiss')} \\")
+    lines.append(rf"Hoeffding bound \cite{{hoeffding1963}} & {bold(fmt(agg_hoeff), agg_best=='hoeff')} \\")
     lines.append(r"\bottomrule")
     lines.append(r"\end{tabular}")
     lines.append(r"\end{table}")
@@ -186,14 +197,24 @@ def main():
         L.append(r"\midrule")
         for m in items:
             s = m["sota"]
-            drl = fmt_drl(m["drl_mean"], m["drl_std"])
+            o = m["oracle"]
+            # bold the method value closest to the Oracle on this trace
+            cands = {"drl": m["drl_mean"]}
+            if s is not None:
+                cands.update({"tvd": s["tvd"], "hell": s["hell"],
+                              "js": s["js"], "weiss": s["weiss"]})
+            best = min(cands, key=lambda k: abs(cands[k] - o))
+            drl = bold(fmt_drl(m["drl_mean"], m["drl_std"]), best == "drl")
             if s is None:
-                row = (rf"{m['trace']} & {m['size']} & {m['oracle']:.0f} & "
+                row = (rf"{m['trace']} & {m['size']} & {o:.0f} & "
                        rf"{drl} & -- & -- & -- & -- \\")
             else:
-                row = (rf"{m['trace']} & {m['size']} & {m['oracle']:.0f} & "
-                       rf"{drl} & {s['tvd']:.0f} & {s['hell']:.0f} & "
-                       rf"{s['js']:.0f} & {fmt(s['weiss'])} \\")
+                tvd = bold(f"{s['tvd']:.0f}", best == "tvd")
+                hell = bold(f"{s['hell']:.0f}", best == "hell")
+                js = bold(f"{s['js']:.0f}", best == "js")
+                weiss = bold(fmt(s["weiss"]), best == "weiss")
+                row = (rf"{m['trace']} & {m['size']} & {o:.0f} & "
+                       rf"{drl} & {tvd} & {hell} & {js} & {weiss} \\")
             L.append(row)
         L.append(r"\bottomrule")
         L.append(r"\end{tabular}")
