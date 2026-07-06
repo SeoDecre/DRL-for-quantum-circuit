@@ -26,8 +26,8 @@
 
 \begin{document}
 
-\title{Learning When to Stop: Deep Reinforcement Learning\\ for Adaptive Shot Allocation in Quantum Circuit Execution}
-\titlerunning{DRL for Adaptive Shot Allocation in Quantum Circuits}
+\title{Learning When to Stop: A Deep Reinforcement Learning Service\\ for Adaptive Shot Allocation in Quantum Circuit Execution}
+\titlerunning{A DRL Service for Adaptive Shot Allocation in Quantum Circuits}
 
 \author{Sergio De Crescenzo \and
 Andrea Cossu \and
@@ -60,15 +60,18 @@ that, at every batch, observes a nine-feature state summarising the running
 empirical distribution and decides whether to continue or to stop. The learner is
 rewarded against an a-posteriori optimal shot count derived from the point of
 diminishing returns, through a precision-shaped asymmetric reward that makes a
-slight overshoot the optimal stop. We train and evaluate on QSimBench, using a strict split in which
-the 36 benchmark traces of a recent state-of-the-art study are held out and
-never seen during training. The learned policy adopts a safety-first behaviour,
-drastically outperforms a-priori Weissman and Hoeffding bounds, surpasses two of
-the three purpose-built divergence-based online policies, and trails only the
-strongest hand-tuned configuration, demonstrating that black-box shot allocation
-is learnable. We discuss the strengths and the current limitations of the
-approach, and outline the road toward closing the remaining gap with the best
-online heuristic.
+slight overshoot the optimal stop. We train and evaluate the service on
+QSimBench across hundreds of circuit-backend configurations, keeping a clean
+separation between the instances used for training, those used to select the
+model, and a set of circuits held out for final evaluation only. The learned
+policy is deliberately cautious: it would rather spend a few extra shots than
+stop too early and return an unreliable result. In our experiments it uses far
+fewer shots than the worst-case a-priori bounds, and it is competitive with the
+hand-tuned online heuristics that constitute the current state of the art,
+matching or beating most of them while approaching the very best. This shows
+that black-box shot allocation can be \emph{learned} rather than hand-designed.
+We discuss the strengths and current limitations of the approach, and outline
+the road toward closing the remaining gap with the best online heuristic.
 
 \keywords{Quantum Computing \and Quantum Software Engineering \and
 Service-Oriented Computing \and Shot Allocation \and Deep Reinforcement
@@ -127,6 +130,22 @@ from feedback on the quality of its decisions. This cleanly separates the
 (expensive, offline) learning of the policy from the (cheap, online) per-batch
 decision that the deployed service performs.
 
+\paragraph{Design rationale.} Three choices shape the rest of the paper, and we
+state them up front so that later sections can refer back to them. First, the
+service is \emph{black-box}: it never inspects the circuit structure or the
+backend noise model, only the statistics of the outcomes it observes. This is
+what turns shot allocation into a reusable capability of the execution stack
+rather than a per-algorithm tool, and what lets the same service apply unchanged
+to any static circuit on any backend, at the cost of giving up the white-box
+signals that algorithm-specific methods exploit. Second, the stopping logic is
+\emph{learned} rather than hand-coded: instead of fixing a convergence test and
+tuning its thresholds over a grid, we let the agent discover the rule from
+feedback, so the machinery can be re-targeted (for instance to a different
+divergence) by retraining rather than redesign. Third, we package the result as
+a \emph{service}: the expensive learning happens once, offline, while the
+deployed gateway performs only the cheap per-batch stop-or-continue decision,
+transparently to the user.
+
 \paragraph{Contributions.} The contributions of this work are:
 \begin{enumerate}
   \item We cast black-box shot allocation as a \emph{service} that mediates
@@ -139,11 +158,12 @@ decision that the deployed service performs.
   diminishing-returns proxy that defines the Oracle, together
   with a precision-shaped asymmetric reward that encodes the domain-specific
   asymmetry between under- and over-sampling (Section~\ref{sec:method}).
-  \item We train and evaluate the agent on QSimBench~\cite{qsimbench} under a
-  strict split, holding out the exact 36 benchmark traces used in the
-  evaluation of a recent state-of-the-art study~\cite{bisicchia2026shots}, and
-  we compare the learned policy against five reference methods on identical
-  traces (Sections~\ref{sec:setup}--\ref{sec:results}).
+  \item We train and evaluate the service on QSimBench~\cite{qsimbench} over
+  hundreds of circuit-backend configurations, keeping a clean separation
+  between the instances used for training, those used to select the model
+  (validation), and a set of circuits held out for final evaluation only, and
+  we compare the learned policy against five reference methods on identical,
+  never-seen test circuits (Sections~\ref{sec:setup}--\ref{sec:results}).
   \item We provide a critical analysis of the learned behaviour, showing it is
   robust and safety-oriented, vastly superior to a-priori bounds, superior to
   two of the three divergence-based online policies, and trailing only the
@@ -153,16 +173,47 @@ decision that the deployed service performs.
 \section{Background and Related Work}
 \label{sec:background}
 
+\subsection{Quantum Circuits, Shots, and Noise}
+\label{sec:qbackground}
+
+A quantum circuit transforms a register of \emph{qubits} through a sequence of
+gates and then measures them, returning a classical bit string in $\{0,1\}^m$
+for $m$ qubits~\cite{nielsen2010quantum}. Measurement is intrinsically
+probabilistic: a single execution does not reveal the underlying state but draws
+one outcome from a probability distribution fixed by the circuit and the
+hardware. For the purposes of this paper a measured circuit can therefore be
+viewed as a randomised black box that, each time it is run, emits one classical
+outcome.
+
+Because one execution yields only one sample, a circuit must be run many times
+to estimate its output distribution. Each repetition is a \emph{shot}, and the
+empirical frequencies over $n$ shots, $\hat{P}_n(x)=\mathrm{count}_n(x)/n$,
+approximate the underlying distribution, converging to it as $n$ grows. Shots
+are not free, however: on cloud-accessed \emph{Noisy Intermediate-Scale Quantum}
+(NISQ) hardware~\cite{preskill2018nisq} they consume queued, billed device time,
+and hardware noise (decoherence, gate and readout errors) perturbs the ideal
+distribution, so past a certain point extra shots no longer reduce the dominant
+error and only waste budget. The practical question is thus \emph{how many shots
+are enough}: stopping too early leaves the estimate dominated by sampling noise
+(\emph{undershooting}), while stopping too late wastes resources
+(\emph{overshooting}). Of the two, a small overshoot is the safer mistake,
+because an undershot estimate can be statistically invalid; we make this
+trade-off precise in the next subsection.
+
+We restrict attention to \emph{static}, non-variational circuits, whose gates
+and parameters are fixed across all shots, so the effective output distribution
+is stationary throughout an execution. This is distinct from variational
+workloads, where a classical optimiser changes the circuit between iterations
+and the distribution drifts; that setting requires different stopping criteria
+and is outside our scope.
+
 \subsection{The Shot-Allocation Problem and the Point of Diminishing Returns}
 
-We consider \emph{static, non-variational} circuits, whose structure and
-parameters are fixed across all shots, so the effective output distribution is
-stationary throughout an execution. Let $P$ be the unknown distribution over the
-finite set of measurement outcomes of a circuit $C$ run on a backend $Q$, and
-let $\hat{P}_n$ be the empirical distribution after $n$ shots. By the law of
-large numbers $\hat{P}_n \to P$ almost surely, so for a divergence
-$\mathcal{D}(\cdot,\cdot)$ the deviation $\mathcal{D}(\hat{P}_n, P)$ vanishes as
-$n$ grows.
+Let $P$ be the unknown distribution over the finite set of measurement outcomes
+of a static circuit $C$ run on a backend $Q$, and let $\hat{P}_n$ be the
+empirical distribution after $n$ shots. By the law of large numbers
+$\hat{P}_n \to P$ almost surely, so for a divergence $\mathcal{D}(\cdot,\cdot)$
+the deviation $\mathcal{D}(\hat{P}_n, P)$ vanishes as $n$ grows.
 
 Since $P$ is inaccessible on real hardware, a recent
 study~\cite{bisicchia2026shots} adopts an \emph{a-posteriori} reference: the
@@ -180,6 +231,20 @@ of~\cite{bisicchia2026shots} with the Total Variation Distance (TVD), as our
 \emph{Oracle}: the ground-truth label against which a stopping decision is
 scored. Throughout, we fix $\mathcal{B}=20{,}000$ shots, a batch size of $50$,
 and $\delta=0.10$.
+
+\paragraph{Undershooting, overshooting, and the optimum.} The optimal stop
+$n^{\star}$ is the fewest shots that already yield a result indistinguishable, up
+to the tolerance $\delta$, from the full-budget estimate. Stopping at exactly
+$n^{\star}$ is ideal but, under stochastic sampling, impossible to pinpoint, and
+two failure modes flank it. \emph{Undershooting}, stopping at $n<n^{\star}$,
+returns a distribution still dominated by sampling noise: the estimate is
+statistically unreliable and any conclusion drawn from it may be invalid.
+\emph{Overshooting}, stopping at $n>n^{\star}$, returns a result of essentially
+the same quality as $n^{\star}$ but pays for the surplus $n-n^{\star}$ shots in
+wasted device time. The two errors are therefore deeply \emph{asymmetric}: an
+overshoot merely costs money, whereas an undershoot can invalidate the result.
+A good stopping rule should accordingly err on the side of a slight overshoot,
+and we build this preference directly into the reward (Section~\ref{sec:method}).
 
 \subsection{Background: Reinforcement Learning and Deep Q-Networks}
 \label{sec:background-dl}
@@ -238,7 +303,12 @@ iterations. All of these methods exploit algorithm-internal signals (gradients,
 Hamiltonian structure, an energy objective) and assume a non-stationary,
 iteration-driven workload; they therefore do not transfer to the static-circuit
 setting we target, where the distribution is fixed and only the raw outcomes are
-observable.
+observable. The two views are nonetheless complementary rather than mutually
+exclusive: within a single iteration the circuit parameters are held fixed and
+its output distribution is momentarily stationary, so our service can be applied
+\emph{independently at each iteration} to minimise the shots spent estimating
+that iteration's distribution, whatever scheme the outer optimiser uses to
+spread effort across iterations.
 
 \paragraph{Learning-based methods.} The strategy most related to ours uses
 machine learning, chiefly reinforcement learning (RL), to derive shot
@@ -285,15 +355,21 @@ and then open it up to show how its decision policy is learned
 (Fig.~\ref{fig:arch}).
 
 \paragraph{The service.} The shot-allocation service is an intermediary that sits
-between a user and a quantum-cloud backend. A user submits a circuit $C$ and a
-target accuracy $\delta$; the service forwards $C$ to the chosen backend $Q$,
-executes it one batch of shots at a time, and after each batch inspects the
-updated empirical distribution to decide whether to request another batch or to
-stop. On stopping it returns the estimated output distribution together with the
-number of shots actually spent. The service never inspects the circuit or the
-noise model: from its viewpoint the backend is a black box that, given a batch,
-returns measurement outcomes. Its single non-trivial decision, \emph{continue or
-stop}, is precisely the stopping policy this paper learns.
+between a user and a quantum-cloud backend. The user interacts with it through a
+single request: they submit the circuit $C$ to run, the identifier of the
+backend $Q$ to run it on, and a target accuracy $\delta$, and they receive back
+the estimated output distribution and the number of shots actually spent. The
+user supplies \emph{only} this input; they do not configure any stopping rule,
+threshold, or shot count, and they are not involved in training the policy. From
+the user's side the service is therefore a drop-in replacement for ``run this
+circuit for a fixed number of shots'', except that the shot count is decided for
+them. Internally, the service forwards $C$ to the chosen backend, executes it one
+batch of shots at a time, and after each batch inspects the updated empirical
+distribution to decide whether to request another batch or to stop. The service
+never inspects the circuit or the noise model: from its viewpoint the backend is
+a black box that, given a batch, returns measurement outcomes. Its single
+non-trivial decision, \emph{continue or stop}, is precisely the stopping policy
+this paper learns.
 
 \begin{figure}[t]
 \centering
@@ -309,20 +385,22 @@ stop}, is precisely the stopping policy this paper learns.
   >={Stealth[length=2.8mm]}
 ]
   \node[user] (user) {\textbf{User /}\\\textbf{application}};
-  \node[svc, right=20mm of user] (svc) {\textbf{Shot-allocation service}\\{\scriptsize (gateway)}\\[2pt]{\scriptsize\itshape learned stop/continue}\\{\scriptsize\itshape policy (this work)}};
+  \node[svc, right=20mm of user] (svc) {\textbf{Shot-allocation service}\\{\scriptsize (gateway)}\\[2pt]{\scriptsize\itshape learned stop/continue}\\{\scriptsize\itshape policy (this work)}\\[2pt]{\scriptsize budget cap $\mathcal{B}=20{,}000$ shots}};
   \node[qpu, right=20mm of svc] (qpu) {\textbf{Quantum}\\\textbf{cloud / QPU}};
 
   \draw[->] ([yshift=4.5mm]user.east) -- node[lbl, above]{circuit $C$,\\target $\delta$} ([yshift=4.5mm]svc.west);
   \draw[->] ([yshift=-4.5mm]svc.west) -- node[lbl, below]{result \&\\shots used} ([yshift=-4.5mm]user.east);
-  \draw[->] ([yshift=4.5mm]svc.east) -- node[lbl, above]{batch of\\shots} ([yshift=4.5mm]qpu.west);
+  \draw[->] ([yshift=4.5mm]svc.east) -- node[lbl, above]{batch of\\$50$ shots} ([yshift=4.5mm]qpu.west);
   \draw[->] ([yshift=-4.5mm]qpu.west) -- node[lbl, below]{measured\\outcomes} ([yshift=-4.5mm]svc.east);
 \end{tikzpicture}}
 \caption{The shot-allocation service as an intermediary gateway between the user
 and the quantum cloud. The user submits a circuit and a target accuracy; the
 service drives execution on the backend one batch at a time, watches the returned
 outcomes, and decides online when to stop, returning the estimated distribution
-and the number of shots spent. This paper concerns the service's stop/continue
-policy, which is \emph{learned} (Fig.~\ref{fig:arch}).}
+and the number of shots spent. Execution proceeds in batches of $50$ shots up to
+a hard cap of $\mathcal{B}=20{,}000$ shots, the total budget beyond which the
+service always stops. This paper concerns the service's stop/continue policy,
+which is \emph{learned} (Fig.~\ref{fig:arch}).}
 \label{fig:service}
 \end{figure}
 
@@ -380,6 +458,86 @@ shown to the agent during decision making and is not required once the policy is
 deployed as an online service.}
 \label{fig:arch}
 \end{figure}
+
+\subsection{Deploying the Service}
+\label{sec:deploy}
+
+\paragraph{A pre-trained model that an operator can update.} Learning the policy
+is a one-off, offline cost (Section~\ref{sec:setup}); the artefact that ships is
+the trained policy network. The service is therefore delivered \emph{ready to
+use}: an end user never trains anything and only issues execution requests.
+Keeping the policy current is instead the responsibility of an
+\emph{administrator} (operator) role, which can retrain the agent on new circuit
+families or backends and hot-swap the deployed network, for instance to track
+changing hardware or to adopt a different optimality criterion. This separation,
+a user who only submits circuits and an administrator who owns the model, mirrors
+how any trained-model-as-a-service component is operated.
+
+\paragraph{Backend: CPU simulation today, a real QPU by configuration.} In this
+work the backend $Q$ is not a physical quantum processor: we use QSimBench, which
+replays pre-computed shot-level traces on the CPU, to emulate execution cheaply
+and reproducibly (Section~\ref{sec:dataset}). The service is agnostic to this
+choice. Because it treats the backend purely as a source of measurement outcomes,
+moving from emulation to real hardware is a matter of changing a single backend
+parameter, from a QSimBench identifier to a quantum-cloud endpoint, with no change
+to the learned policy or the surrounding logic.
+
+\paragraph{Exposing the service as a REST API.} Concretely, the gateway is a thin
+REST service: we wrap it in a minimal Flask application that accepts a circuit and
+a target backend on a single \texttt{POST /execute} endpoint and returns the
+estimated distribution and the shots spent as JSON (Fig.~\ref{fig:api}). The whole
+service is packaged as a Docker image, so a practitioner can stand it up next to
+their application as a single container. Because a real execution can take a long
+time, dominated by quantum-cloud queueing and the batches themselves rather than
+by the policy, a production deployment would expose this as an asynchronous job
+(submit, then poll for the result) rather than a single blocking call; we keep the
+synchronous form here for clarity.
+
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.92\textwidth}
+\footnotesize
+\begin{verbatim}
+# Flask gateway: submit a circuit, get back result + shots used
+@app.route("/execute", methods=["POST"])
+def execute():
+    req = request.get_json()          # {algorithm, size, backend, delta}
+    dist, shots = service.run(
+        circuit=req["algorithm"], size=req["size"],
+        backend=req["backend"],       # QSimBench id today; a QPU by config
+        delta=req.get("delta", 0.10)) # target accuracy
+    return jsonify({"distribution": dist, "shots_used": shots})
+\end{verbatim}
+\end{minipage}
+\caption{Minimal REST interface to the service. A single \texttt{POST /execute}
+call takes a circuit specification and a target backend and returns the estimated
+output distribution together with the number of shots the learned policy decided
+to spend. Under QSimBench the circuit is given as a benchmark identifier
+(algorithm and size); on real hardware the same endpoint accepts the circuit
+itself. The container runs unchanged against an emulated or a real backend.}
+\label{fig:api}
+\end{figure}
+
+\subsection{Practical Applicability on Real Quantum Clouds}
+\label{sec:applicability}
+
+A natural concern is whether a gateway that issues many small, adaptive batches
+is viable on real quantum clouds, where per-job queueing could erode the savings
+it produces. Recent infrastructure makes it so. Session-based execution models,
+such as IBM Quantum sessions, grant a continuous execution window in which
+successive batches are dispatched with minimal latency and preserved hardware
+state, exactly the access pattern our service needs. Reservation-based models
+offered by other providers (e.g.\ IonQ, Rigetti, AWS Braket) similarly let a
+client pre-book a dedicated window and issue many submissions without re-entering
+the global queue. Both, together with job batching, cut the per-batch overhead to
+the point where tight, feedback-driven execution loops are practical. The service
+is moreover a natural fit for the hybrid quantum-classical runtimes built for
+variational workloads: the scheduling and session machinery those runtimes
+already provide is what an adaptive gateway consumes, and, as noted in
+Section~\ref{sec:relwork}, the service can be invoked per-iteration inside such a
+loop. In short, the deployment we describe is aligned with where quantum-cloud
+execution is already heading, and where shaving unnecessary shots translates
+directly into less queue time and lower cost.
 
 \subsection{State Space}
 \label{sec:state}
@@ -485,41 +643,44 @@ and a target network synchronised every $2{,}000$ gradient steps. The loss is
 the mean-squared temporal-difference error
 $\bigl(y_t - Q_\theta(s_t,a_t)\bigr)^2$.
 
-\subsection{Dataset, Oracle Labels, and Strict Split}
+\subsection{Dataset, Oracle Labels, and Data Split}
 \label{sec:dataset}
 
-We use QSimBench~\cite{qsimbench}, an execution-level benchmark providing more
-than 20 million precomputed shot-level traces across many algorithms (e.g.\ dj,
-qaoa, qft, vqe, qnn, random), circuit sizes from $4$ to $14$ qubits, and IBM
-noisy backend simulators (\texttt{fake\_fez}, \texttt{fake\_kyiv},
-\texttt{fake\_marrakesh}, \texttt{fake\_sherbrooke}, \texttt{fake\_torino}).
-Each problem instance is a triplet (algorithm, size, backend); its Oracle label
+We build our experiments on QSimBench~\cite{qsimbench}, an open execution-level
+benchmark suite for quantum software engineering. Unlike benchmarks that ship
+only static circuit definitions and leave execution to the user, QSimBench
+provides more than 20 million \emph{precomputed shot-level traces}: for each
+combination of algorithm, circuit size, and backend it stores the actual sequence
+of measured outcomes of a full $\mathcal{B}=20{,}000$-shot execution. This lets us
+replay realistic, noisy executions on the CPU, deterministically and at no
+quantum-hardware cost, which is exactly what makes a large and reproducible study
+of stopping policies feasible. The suite spans many algorithms (e.g.\ dj, qaoa,
+qft, vqe, qnn, random), circuit sizes from $4$ to $14$ qubits, and IBM noisy
+backend simulators (\texttt{fake\_fez}, \texttt{fake\_kyiv},
+\texttt{fake\_marrakesh}, \texttt{fake\_sherbrooke}, \texttt{fake\_torino}). Each
+problem instance is a triplet (algorithm, size, backend); its Oracle label
 $n^{\star}$ is precomputed once via Eq.~\eqref{eq:oracle}.
 
-To enable a fair, leakage-free comparison with the state of the art, we reserve
-as the \emph{test set} the exact 36 traces used in the evaluation tables
-of a recent study~\cite{bisicchia2026shots} (18 \emph{small} circuits with
-$n<10$, 18 \emph{big} with $n\ge 10$). All remaining 828 traces (after excluding the
-\texttt{grover-noancilla} variants) form the \emph{training/validation} pool;
-the agent never observes a test trace during training. Because outcomes are
+We split the available instances once, without overlap, into three roles. A
+\emph{training} pool the agent learns from, a \emph{validation} pool used only to
+select the model (Section~\ref{sec:setup}), and a \emph{test set} that is held out
+and never seen during training or model selection. For a fair, leakage-free
+comparison with the state of the art, the test set is fixed to the $36$ benchmark
+traces used in the evaluation of a recent study~\cite{bisicchia2026shots}
+(a balanced set of \emph{small}, $n<10$, and \emph{big}, $n\ge10$, circuits); the
+remaining instances (after excluding the \texttt{grover-noancilla} variants) form
+the training/validation pool. The study as a whole is large: training runs over
+many episodes, each touching a different instance, and every test instance is then
+replayed many times, so the figures we report aggregate a substantial number of
+independent circuit executions rather than single runs. Because outcomes are
 sampled stochastically, even a fixed (deterministic, argmax) policy produces a
-different trajectory on each evaluation run, which we exploit to report
-mean$\pm$std behaviour (Section~\ref{sec:setup}). The 36 held-out traces are
-summarised in Fig.~\ref{fig:overview}.
+different trajectory on each run, which is why we report mean$\pm$std behaviour
+(Section~\ref{sec:setup}).
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{problem_overview.pdf}
-\caption{The 36 held-out benchmark traces (test set), grouped by circuit family,
-size, backend, and a-posteriori Oracle shot count. These traces are never seen
-during training.}
-\label{fig:overview}
-\end{figure}
-
-A practical challenge is the heavy skew of the dataset toward \emph{small}
-instances that converge with few shots. We address this with a configurable
-training distribution (\emph{AgentType}): the \textsc{generic} agent studied
-here trains on a balanced 50/50 mix of small ($n<10$) and big ($n\ge10$)
+A practical challenge is the heavy skew of the available instances toward
+\emph{small} circuits that converge with few shots. We address this with a
+configurable training distribution (\emph{AgentType}): the \textsc{generic} agent
+studied here trains on a balanced 50/50 mix of small ($n<10$) and big ($n\ge10$)
 problems, so it is exposed to the full spectrum of convergence behaviours.
 
 \section{Development and Experimental Setup}
@@ -573,14 +734,14 @@ budget $\mathcal{B}$.
 \section{Results}
 \label{sec:results}
 
-\subsection{Training Dynamics and Policy Alignment}
+\subsection{How the Agent Learns to Stop}
 
 Figure~\ref{fig:dashboard} summarises the training and evaluation of the
 \textsc{generic} agent. The reward moving average stabilises quickly while the
 MAE undergoes the sharp breakthrough decline described above, confirming that
 the learning is productive rather than a mere reward artefact. Because outcomes
 are stochastic and the test circuits are unseen, the agent cannot memorise a
-scalar shot count; to stop well it must interpret the dynamic state features --
+scalar shot count; to stop well it must interpret the dynamic state features,
 chiefly entropy, the concentration, and the two lag-based rates of change, to
 locate the point of stability.
 
@@ -594,27 +755,11 @@ locate the point of stability.
   \includegraphics[width=\linewidth]{snapshot_validation.pdf}\\
   {\footnotesize (b) Validation MAE across checkpoints}
 \end{minipage}
-
-\vspace{6pt}
-
-\begin{minipage}[t]{0.49\textwidth}\centering
-  \includegraphics[width=\linewidth]{error_distribution.pdf}\\
-  {\footnotesize (c) Stopping-error distribution}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.49\textwidth}\centering
-  \vspace{0pt}
-  \includegraphics[width=0.82\linewidth]{performance_summary.pdf}\\
-  {\footnotesize (d) Test-set performance summary}
-\end{minipage}
 \caption{Training and evaluation diagnostics for the \textsc{generic} agent.
 (a)~Episodic reward during training (raw trace and $100$-episode moving average),
 which stabilises early. (b)~Mean absolute error (MAE) on the validation set at
 each saved checkpoint, showing the sharp breakthrough decline that motivates the
-de-noised checkpoint selection of Section~\ref{sec:setup}. (c)~Distribution of
-stopping errors ($n_{\text{agent}}-n^{\star}$) over the $36$ held-out traces,
-right-skewed toward safe overshooting with almost no undershoot. (d)~Compact
-summary of the agent's test-set behaviour: mean and median deviation from the
-Oracle, the small-vs-big breakdown, and the under-/over-/exact-stop counts.}
+de-noised checkpoint selection of Section~\ref{sec:setup}.}
 \label{fig:dashboard}
 \end{figure}
 
@@ -678,6 +823,19 @@ desirable bias in a scientific setting. (iii)~\emph{Modularity}: since the polic
 is learned from the Oracle's signal rather than hard-coded, swapping the Oracle's
 divergence (TVD $\to$ Hellinger/JS) only requires retraining, not redesign.
 
+\paragraph{Implications for the service.} These properties are what let the
+result be operated as a service rather than a one-off experiment. Because the
+policy is black-box and reads only outcome statistics, a single deployed gateway
+serves \emph{any} static circuit on \emph{any} backend with no per-circuit
+tuning; because it ships as a pre-trained network behind a thin REST API
+(Section~\ref{sec:deploy}), a call costs one request and the per-batch decision
+is negligible next to the quantum execution it governs; and because the behaviour
+is safety-first, the service can be trusted to err toward a few extra shots
+rather than return an invalid result, which is the right default for an
+unattended intermediary. The same modularity means an operator can re-tune the
+service (a different divergence, a different cost trade-off) by retraining,
+without touching the deployment.
+
 \paragraph{Limitations.} The agent does not yet outperform the best online
 heuristic, and its dominant error mode is conservative \emph{overshooting on
 mid-range circuits}: on $6$--$8$-qubit \texttt{qaoa}/\texttt{qft}/\texttt{qnn}
@@ -705,16 +863,19 @@ remains future work.
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-We presented a Deep Reinforcement Learning approach to adaptive shot allocation
-that learns, under a strict black-box assumption, when to stop sampling a quantum
-circuit. Framed as a Markov Decision Process with a nine-feature state and a
-precision-shaped, safety-oriented asymmetric reward, a DQN learns a stopping
-policy that generalises to unseen circuit families, dramatically outperforms
-a-priori concentration bounds, and surpasses two of the three purpose-built
-online heuristics, all without encoding any explicit convergence test, and it
-yields a lightweight policy network deployable as an online, black-box
-\emph{shot-allocation service}. This establishes that black-box shot allocation
-is learnable.
+We presented a \emph{shot-allocation service}, an intermediary gateway between a
+user and the quantum cloud, whose decision logic is a Deep Reinforcement Learning
+agent that learns, under a strict black-box assumption, when to stop sampling a
+quantum circuit. Framed as a Markov Decision Process with a nine-feature state and
+a precision-shaped, safety-oriented asymmetric reward, the agent learns a stopping
+policy that generalises to unseen circuit families, uses far fewer shots than
+a-priori concentration bounds, and is competitive with the hand-tuned online
+heuristics that represent the state of the art, matching or beating most of them
+while approaching the best, all without encoding any explicit convergence test.
+The result is a lightweight, pre-trained policy network that ships behind a thin
+REST API and runs unchanged against an emulated or a real backend. This
+establishes that black-box shot allocation can be \emph{learned} rather than
+hand-designed.
 
 Future work targets the remaining gap with the best online policy: sharper
 reward shaping for the mid-range circuits the agent currently over-samples,

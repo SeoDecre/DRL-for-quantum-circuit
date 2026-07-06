@@ -1,0 +1,85 @@
+---
+\section{Quantum Background for Non-Specialists}
+\label{sec:background}
+ 
+This section recalls only the quantum background needed to define the classical sampling law used later. A reader already familiar with quantum circuits may skip to Section~\ref{sec:related}.
+ 
+\subsection{From qubits to measured bit strings}
+ 
+A qubit is a quantum state whose computational-basis measurement returns a classical bit. For one qubit,
+\[
+|\psi\rangle = \alpha |0\rangle + \beta |1\rangle,
+\qquad |\alpha|^2+|\beta|^2=1,
+\]
+and measurement gives outcome $0$ with probability $|\alpha|^2$ and outcome $1$ with probability $|\beta|^2$ \cite{nielsen2010quantum}. For $m$ qubits, measurement returns a bit string in $\{0,1\}^m$. Thus, for the purposes of this paper, a measured quantum circuit can be viewed operationally as a randomized black box that returns classical bit strings.
+ 
+
+\subsection{Why shots are needed}
+ 
+One execution of a circuit gives one draw from the output distribution. It does not reveal the whole distribution. To estimate that distribution, the circuit must be executed repeatedly. Each repetition is a shot. If the observed history is
+\[
+ h=x_1x_2\cdots x_n,\qquad x_i\in \{0,1\}^m,
+\]
+then the empirical probability assigned to outcome $x$ is
+\[
+ \widehat P_h(x)=\frac{1}{n}\sum_{i=1}^n \mathbf 1[x_i=x].
+\]
+As $n$ grows, the empirical distribution usually becomes less noisy. But more shots are not free. On cloud quantum platforms, shots contribute to runtime, queueing, and sometimes direct cost. On noisy hardware, additional shots also cannot remove systematic hardware bias: after sampling noise is small, the curve may plateau because the residual error is dominated by device noise rather than by sample size.
+ 
+\subsection{Static circuits versus adaptive workflows}
+ 
+This paper focuses on \emph{static} circuit execution. A static circuit has the same gates and parameters for all shots. In the base model used here, all outcomes in one execution window are modeled as i.i.d. samples from one fixed effective distribution.
+ 
+This is different from a variational quantum algorithm. In a variational quantum algorithm, a classical optimizer changes circuit parameters between iterations \cite{cerezo2021variational,tilly2022vqe}. The distribution sampled at iteration $t$ may therefore differ from the distribution sampled at iteration $t+1$. A stopping rule for static circuits can look for stabilization of one empirical distribution. A stopping rule for variational circuits must also account for intentional distributional drift caused by the optimizer.
+ 
+\subsection{A denotational view of a noisy circuit}
+ 
+A compact way to formalize the classical distribution induced by a noisy quantum experiment is to use density matrices, quantum channels, and positive operator-valued measures (POVMs). Let $\rho_0$ be the initial quantum state. Let $\mathcal E_{C,Q}$ be the effective noisy channel representing circuit $C$ executed on backend $Q$. Let $M=\{M_x\}_{x\in\mathcal X}$ be the POVM describing the measurement, where each $M_x$ is a positive semidefinite POVM effect and $\sum_{x\in\mathcal X} M_x = I$. The probability of observing outcome $x$ is
+\[
+ P_{C,Q}(x)=\operatorname{Tr}\!\bigl(M_x\,\mathcal E_{C,Q}(\rho_0)\bigr).
+\]
+Here, $\operatorname{Tr}$ denotes the matrix trace. In quantum mechanics,
+this operation is used in the Born rule to extract the probability of a
+measurement outcome from a quantum state and the corresponding POVM effect.
+ 
+After $P_{C,Q}$ has been fixed, the quantum layer is abstracted away. The rest of the paper does not reason about the internal state $\rho_0$, the channel $\mathcal E_{C,Q}$, or the measurement operators $M_x$. Instead, it treats the fixed circuit/backend pair as inducing a classical stochastic sampling law over bit strings. In the static setting, repeated shots are modeled as samples from this law, and batches are modeled by the corresponding product distribution.
+ 
+The online algorithm studied here does not know $\mathcal E_{C,Q}$ or $P_{C,Q}$. The formula is a semantic model of what the black box produces, not an input available to the controller.
+ 
+
+\begin{table}[H]
+\centering
+\caption{Informal translation between quantum language and the probabilistic semantics used in this paper.}
+\label{tab:translation}
+\begin{tabular}{p{0.28\linewidth}p{0.62\linewidth}}
+\toprule
+Quantum term & Operational/probabilistic reading \\
+\midrule
+Qubit register & Hidden physical state that will eventually be measured. \\
+Circuit $C$ & Program that transforms the quantum state before measurement. \\
+Noisy backend $Q$ & Physical implementation that perturbs the ideal circuit behavior. \\
+Measurement & Interface from quantum state to classical bit string. \\
+Shot & One sampled bit string from the effective output distribution. \\
+Empirical distribution & Histogram of observed bit strings normalized to probabilities. \\
+Shot budget $B$ & Maximum number of samples the controller may request. \\
+Stopping policy & Online rule deciding whether the current histogram is stable enough. \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+\subsection{Noise as an observable distributional effect}
+ 
+Noise can be modeled in many detailed ways: amplitude damping, dephasing, depolarizing noise, gate errors, crosstalk, and state-preparation-and-measurement errors \cite{preskill2018nisq,arute2019quantum}. \IncExec does not require choosing one of these models. For this paper, the important point is that all such effects are summarized observationally by the sampled distribution $P_{C,Q}$. Two devices with different microscopic errors are indistinguishable to a black-box controller if they induce the same distribution over observed bit strings.
+ 
+---
+ 
+
+A quantum computation is typically described by a \emph{quantum circuit}, which is a sequence of quantum gates (operations) applied to one or more qubits, followed by one or more measurements. These gates manipulate the qubit states, gradually evolving them into a desired superposition or entangled configuration. At the end of the circuit, measurements collapse the quantum state, yielding a classical output: a binary string corresponding to the observed state of the qubits.
+ 
+Importantly, quantum circuits do not produce deterministic outputs. Instead, each execution of a circuit produces one random sample from a probability distribution over possible outputs. The probability of each outcome is determined by the final quantum state of the system before measurement. To recover this distribution and obtain statistically meaningful results, the same circuit must be executed many times. Each independent execution is called a \emph{shot}, and the collection of outcomes from multiple shots forms the empirical output distribution of the circuit.
+ 
+Due to this probabilistic nature, quantum software must be designed with statistical post-processing in mind. Most quantum algorithms rely on analyzing the frequencies of observed outcomes across many shots to estimate properties such as expectation values, solution probabilities, or distributions over search spaces.
+ 
+Complicating matters further is the presence of \emph{noise}. Current quantum hardware, often referred to as Noisy Intermediate-Scale Quantum (NISQ) devices, is susceptible to a range of physical imperfections (such as decoherence, gate errors, and readout inaccuracies) that distort the ideal quantum evolution and measurement outcomes. This noise introduces systematic alterations in the output distribution, reducing the fidelity of computation and making it harder to distinguish correct results from spurious ones. For a more in-depth discussion, we refer readers to standard resources such as the book by Nielsen and Chuang~\cite{nielsen2010quantum}.
+
+---
