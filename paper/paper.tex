@@ -43,13 +43,11 @@ Antonio Brogi\orcidID{0000-0003-2048-2098}}
 \maketitle
 
 \begin{abstract}
-Quantum algorithms are executed by repeatedly sampling a circuit (a process
-known as performing \emph{shots}) in order to estimate its output
-distribution. Choosing how many shots to run is a practical and consequential
-decision: too few yield statistically unreliable results, while too many waste
-scarce and costly quantum hardware time. Existing solutions either rely on
-conservative a-priori concentration bounds or on hand-crafted online stopping
-heuristics tailored to specific algorithm families. We propose to delegate this decision to a \emph{shot-allocation service}: an
+Quantum algorithms estimate their output distribution by repeatedly sampling a
+circuit, a process known as performing \emph{shots}. Choosing how many shots to
+run is consequential: too few yield unreliable results, too many waste scarce
+and costly quantum hardware time. Existing solutions rely either on conservative
+a-priori concentration bounds or on hand-crafted online stopping heuristics. We propose to delegate this decision to a \emph{shot-allocation service}: an
 intermediary gateway that sits between the user and the quantum cloud,
 transparently managing circuit execution and deciding online, after each batch
 of shots, when enough have been collected. The service operates under a fully
@@ -75,7 +73,7 @@ the road toward closing the remaining gap with the best online heuristic.
 
 \keywords{Quantum Computing \and Quantum Software Engineering \and
 Service-Oriented Computing \and Shot Allocation \and Deep Reinforcement
-Learning \and Deep Q-Network \and NISQ.}
+Learning.}
 \end{abstract}
 
 \section{Introduction}
@@ -152,7 +150,9 @@ transparently to the user.
   between users and quantum-cloud backends, and realise its decision logic as a
   Markov Decision Process solved by a Deep Q-Network (DQN) that decides, batch by
   batch, whether to continue executing or to stop, using only a compact black-box
-  view of the running empirical distribution (Section~\ref{sec:method}).
+  view of the running empirical distribution; we package and release this service
+  as a deployable REST API that wraps the learned policy behind a single execution
+  endpoint (Sections~\ref{sec:method} and~\ref{sec:deploy}).
   \item We design a nine-feature state representation combining static problem
   descriptors with dynamic convergence signals built on the same
   diminishing-returns proxy that defines the Oracle, together
@@ -351,8 +351,7 @@ fixed convergence test into a trainable decision policy.
 \subsection{System Architecture}
 
 We first describe the system from the outside, as a service (Fig.~\ref{fig:service}),
-and then open it up to show how its decision policy is learned
-(Fig.~\ref{fig:arch}).
+and then open it up to show how its decision policy is learned.
 
 \paragraph{The service.} The shot-allocation service is an intermediary that sits
 between a user and a quantum-cloud backend. The user interacts with it through a
@@ -400,64 +399,22 @@ outcomes, and decides online when to stop, returning the estimated distribution
 and the number of shots spent. Execution proceeds in batches of $50$ shots up to
 a hard cap of $\mathcal{B}=20{,}000$ shots, the total budget beyond which the
 service always stops. This paper concerns the service's stop/continue policy,
-which is \emph{learned} (Fig.~\ref{fig:arch}).}
+which is \emph{learned}.}
 \label{fig:service}
 \end{figure}
 
 \paragraph{Inside the service: learning the policy.} The stop/continue policy is
 obtained by reinforcement learning. At training time the service is embedded in a
-standard RL loop of three conceptually distinct components (Fig.~\ref{fig:arch}).
-The \emph{agent} is the DQN learner that, at each step, observes a compact state
-and chooses to \textsc{continue} or to \textsc{stop}; it is the component that is
-eventually distilled into the deployed service. The \emph{quantum environment} is
-a simulated playground, built on QSimBench, that stands in for the backend: it
+standard RL loop of three conceptually distinct components. The \emph{agent} is
+the DQN learner that, at each step, observes a compact state and chooses to
+\textsc{continue} or to \textsc{stop}; it is the component that is eventually
+distilled into the deployed service. The \emph{quantum environment} is a
+simulated playground, built on QSimBench, that stands in for the backend: it
 executes batches of shots and exposes the running statistics of the outcomes. The
 \emph{Oracle} is a direct implementation of the a-posteriori optimum of
 Eq.~\eqref{eq:oracle}; it is a training-time teacher whose answer is used
 \emph{only} at the end of an episode to score the agent, and is never revealed
 during decision making nor needed once the service is deployed.
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={rounded corners=2pt, draw, thick, align=center,
-              minimum height=11mm, minimum width=34mm, inner sep=4pt},
-  agent/.style={box, fill=blue!8, draw=blue!55},
-  envb/.style ={box, fill=green!8, draw=green!55!black},
-  oracle/.style={box, fill=orange!12, draw=orange!70!black},
-  lbl/.style={font=\scriptsize\itshape, align=center},
-  >={Stealth[length=2.6mm]}
-]
-  \node[agent]  (agent) {\textbf{Agent}\\(DQN learner)\\{\scriptsize policy $\pi$: continue/stop}};
-  \node[envb, right=30mm of agent] (env) {\textbf{Quantum environment}\\(QSimBench playground)\\{\scriptsize executes batches of shots}};
-  \node[oracle, below=15mm of env] (oracle) {\textbf{Oracle}\\{\scriptsize a-posteriori optimum}\\{\scriptsize Eq.~\eqref{eq:oracle}}};
-
-  % agent <-> env interaction loop (horizontal)
-  \draw[->, blue!60!black] ([yshift=3.5mm]agent.east) -- node[lbl, above]{action\\\textsc{continue}/\textsc{stop}} ([yshift=3.5mm]env.west);
-  \draw[->, green!45!black] ([yshift=-3.5mm]env.west) -- node[lbl, below]{state $\mathbf{s}_t$, reward $r_t$} ([yshift=-3.5mm]agent.east);
-
-  % env <-> oracle, episode termination only (vertical)
-  \draw[->, dashed, orange!75!black] ([xshift=-6mm]env.south) -- node[lbl, left]{query:\\full trace} ([xshift=-6mm]oracle.north);
-  \draw[->, dashed, orange!75!black] ([xshift=6mm]oracle.north) -- node[lbl, right]{$n^{\star}$\\(reward)} ([xshift=6mm]env.south);
-
-  % grouping: online service vs offline teacher
-  \begin{scope}[on background layer]
-    \node[draw=blue!40, dashed, rounded corners, fit=(agent)(env),
-          inner sep=5mm, label={[blue!55!black, font=\scriptsize\bfseries]above:Online: deployable shot-allocation service}] {};
-    \node[draw=orange!60, dotted, rounded corners, fit=(oracle),
-          inner sep=3mm, label={[orange!70!black, font=\scriptsize\bfseries]below:Offline: training-time teacher}] {};
-  \end{scope}
-\end{tikzpicture}
-\caption{Training-time learning loop inside the service. The \emph{agent} and the
-\emph{quantum environment} form a closed interaction loop (solid arrows): the
-agent observes a state and acts iteratively until it stops. Only at episode
-termination does the environment consult the \emph{Oracle} (dashed arrows) to turn
-the agent's stop into a reward; the Oracle's optimal count $n^{\star}$ is never
-shown to the agent during decision making and is not required once the policy is
-deployed as an online service.}
-\label{fig:arch}
-\end{figure}
 
 \subsection{Deploying the Service}
 \label{sec:deploy}
@@ -542,27 +499,25 @@ directly into less queue time and lower cost.
 \subsection{State Space}
 \label{sec:state}
 
-At step $t$ the agent has executed $N_t = 50\,t$ shots of an instance
-$(\mathtt{alg},n,\mathtt{bk})$ (algorithm, number of qubits, and backend)
-and holds the cumulative empirical distribution $\hat{P}_t$ over observed
-outcomes. The state is the nine-component vector
+After $t$ batches the agent has run $N_t = 50\,t$ shots of an instance
+$(\mathtt{alg},n,\mathtt{bk})$ (algorithm, number of qubits, backend) and holds
+the running empirical distribution $\hat{P}_t$ over the outcomes seen so far. It
+sees this as a nine-number vector, every entry rescaled to $[0,1]$:
 \begin{equation}
 \mathbf{s}_t = \bigl(\;
   \underbrace{a,\;\; n/15,\;\; b,\;\; N_t/\mathcal{B}}_{\text{static descriptors}},\;\;
   \underbrace{\tilde{H}_t,\;\; C_t,\;\; \rho^{(1)}_t,\;\; \rho^{(L)}_t,\;\; \varrho_t}_{\text{dynamic convergence signals}}
-\;\bigr)\;\in\;[0,1]^{9},
+\;\bigr)\;\in\;[0,1]^{9}.
 \label{eq:state}
 \end{equation}
-where every component is normalised to $[0,1]$ to aid optimisation. The four
-\emph{static} descriptors identify the problem: $a=\mathrm{idx}(\mathtt{alg})/(A-1)$
-and $b=\mathrm{idx}(\mathtt{bk})/(K-1)$ are integer encodings of the algorithm and
-backend over the $A$ algorithms and $K$ backends seen in training, $n/15$ is the
-circuit size, and $N_t/\mathcal{B}$ is a coarse progress bar. They let the agent
-recognise the \emph{kind} of circuit it faces and how much budget it has spent.
+The four \emph{static} entries say what the agent is running and how far along it
+is: $a=\mathrm{idx}(\mathtt{alg})/(A-1)$ and $b=\mathrm{idx}(\mathtt{bk})/(K-1)$
+are index encodings of the algorithm and backend over the $A$ algorithms and $K$
+backends seen in training, $n/15$ is the circuit size, and $N_t/\mathcal{B}$ is a
+progress bar over the budget.
 
-The five \emph{dynamic} signals, recomputed after every batch, let it perceive
-in real time how close $\hat{P}_t$ is to stabilising. With outcome probabilities
-$\hat{P}_t(x)=\mathrm{count}_t(x)/N_t$, we use:
+The five \emph{dynamic} signals, refreshed after every batch, tell it how close
+$\hat{P}_t$ is to settling. With $\hat{P}_t(x)=\mathrm{count}_t(x)/N_t$:
 \begin{align}
 \tilde{H}_t &= \frac{1}{n}\Bigl(-\!\!\sum_{x}\hat{P}_t(x)\log_2 \hat{P}_t(x)\Bigr),
   & &\text{(Shannon entropy, normalised by $n$ bits)} \label{eq:entropy}\\
@@ -574,37 +529,30 @@ C_t &= \sum_{x}\hat{P}_t(x)^2,
 \varrho_t &= \min\!\bigl(N_t/(1500\,n),\,1\bigr).
   & &\text{(size-relative progress)} \label{eq:relprog}
 \end{align}
-The entropy~\eqref{eq:entropy} discriminates peaked from flat output
-distributions (and is divided by $n$ rather than a constant so it does not
-saturate on wide circuits), while the concentration~\eqref{eq:conc} gives a
-scale-free measure of peakedness that complements it. The two
-rate-of-change signals~\eqref{eq:rate} are the heart of the state: $\rho^{(1)}_t$
-compares the cumulative distribution to that one batch earlier, and
-$\rho^{(L)}_t$ to that $L=10$ batches earlier. The latter is exactly the
-lag-$\ell$ diminishing-returns proxy that underlies the Oracle of
-Eq.~\eqref{eq:oracle}, so the agent can observe the very quantity its reward is
-defined against, while $\rho^{(1)}_t$ supplies a shorter, noisier view. Finally,
-the size-relative progress~\eqref{eq:relprog} normalises the shot count by a
-size-dependent budget heuristic ($1500\,n$), letting the agent distinguish early
-statistical noise from genuine late convergence on circuits whose
-diminishing-returns point scales with $n$.
+Entropy~\eqref{eq:entropy} and concentration~\eqref{eq:conc} together say how
+peaked or flat the distribution is; entropy is divided by $n$ so it does not
+saturate on wide circuits. The two rate-of-change terms~\eqref{eq:rate} are the
+core of the state: $\rho^{(1)}_t$ measures how much $\hat{P}_t$ moved over the
+last batch and $\rho^{(L)}_t$ over the last $L=10$ batches. The latter is exactly
+the diminishing-returns proxy behind the Oracle of Eq.~\eqref{eq:oracle}, so the
+agent can watch the very quantity its reward is built on, while $\rho^{(1)}_t$
+gives a shorter, noisier view. The last term~\eqref{eq:relprog} rescales the shot
+count by a size-dependent budget ($1500\,n$), helping the agent tell early noise
+from genuine late convergence on larger circuits.
 
 \subsection{Actions, Episodes, and Reward}
 
-The action space is binary: \textsc{continue} executes one more batch of $50$
-shots and updates the state; \textsc{stop} terminates the episode. An episode
-also terminates automatically if the budget $\mathcal{B}$ is exhausted. On
-termination the environment compares the agent's total shot count to the Oracle's
-$n^{\star}$ and emits a single terminal reward (intermediate \textsc{continue}
-steps carry no immediate reward; the pressure toward efficiency comes from
-discounting and from the decay of the terminal reward). The terminal reward is
-deliberately \emph{asymmetric}, reflecting that the two failure modes are not
-equally harmful: under-sampling yields statistically invalid results, whereas
-over-sampling merely wastes resources. Moreover, it is \emph{precision-shaped}:
-the maximum reward is granted on a small overshoot plateau, making a slight
-overshoot, rather than a knife-edge perfect stop, the optimum under
-stochastic observations. Let $\text{error} = n_{\text{agent}} - n^{\star}$ and
-let $m = 200$ shots be the overshoot plateau margin. Then
+The agent has two actions: \textsc{continue} runs one more batch of $50$ shots
+and updates the state, \textsc{stop} ends the episode (an episode also ends on
+its own once the budget $\mathcal{B}$ is spent). Only the final action is
+rewarded: the environment compares the agent's total shots to the Oracle's
+$n^{\star}$ and returns a single terminal reward, while the pressure toward
+fewer shots comes from discounting. The reward is deliberately \emph{asymmetric},
+because the two mistakes are not equally bad, undershooting gives an invalid
+result whereas overshooting only wastes shots, and \emph{precision-shaped}, so
+the best score sits on a small overshoot plateau rather than on a knife-edge
+perfect stop. With $\text{error} = n_{\text{agent}} - n^{\star}$ and a plateau
+margin $m = 200$ shots,
 \begin{equation}
   R_{\text{term}} =
   \begin{cases}
@@ -615,73 +563,64 @@ let $m = 200$ shots be the overshoot plateau margin. Then
   \end{cases}
   \label{eq:reward}
 \end{equation}
-with decay rate $\lambda = 2$, where $\sigma = 1 + 0.5\,n^{\star}/\mathcal{B}$
-scales the penalty with problem difficulty and $\beta = -1.85$ for \emph{small}
-instances ($n^{\star} \le 5{,}000$) or $\beta = -2.5$ for \emph{big} ones.
-Overshooting earns the full reward anywhere in the plateau $[0,m]$ and then
-decays \emph{relative to the Oracle value} $n^{\star}$, so a fixed absolute
-overshoot is punished hard on cheap circuits but tolerated on expensive ones.
-Undershooting is treated as a categorical failure with a large negative reward.
-This asymmetry instils a principled safety-first bias while still pulling the
-policy toward the diagonal.
+with decay rate $\lambda = 2$, $\sigma = 1 + 0.5\,n^{\star}/\mathcal{B}$ scaling
+the penalty with difficulty, and $\beta = -1.85$ for \emph{small} instances
+($n^{\star} \le 5{,}000$) or $-2.5$ for \emph{big} ones. Overshooting scores the
+full reward anywhere in $[0,m]$ and then decays \emph{relative to} $n^{\star}$, so
+the same absolute overshoot hurts a lot on a cheap circuit but little on an
+expensive one; undershooting is treated as a flat failure with a large negative
+reward. The net effect is a safety-first bias that still pulls the policy toward
+the diagonal.
 
 \subsection{Network and Learning Algorithm}
 
-The action-value function is approximated by a multi-layer perceptron with input
-dimension $9$ (the state of Eq.~\eqref{eq:state}), three hidden layers of $512$,
-$256$, and $128$ ReLU units (with $10\%$ dropout after the first two for
-regularisation; dropout is disabled during action selection so that the greedy
-policy is deterministic), and a two-unit linear output giving
-$Q(s,\textsc{continue})$ and $Q(s,\textsc{stop})$. Training follows the standard
-DQN target~\cite{mnih2015human}: the bootstrap value at $s_{t+1}$ is the maximum
-target-network $Q$-value, $y_t = r_t + \gamma\,(1-d_t)\max_{a'}Q_{\bar\theta}(s_{t+1},a')$,
-with $d_t$ the terminal flag. We use an $\varepsilon$-greedy behaviour policy
-($\varepsilon$ decaying once per episode from $1.0$ to $0.05$), an
-experience-replay buffer of $200{,}000$ transitions, mini-batches of $64$, the
-Adam optimiser at learning rate $10^{-4}$, a discount factor $\gamma = 0.997$,
-and a target network synchronised every $2{,}000$ gradient steps. The loss is
-the mean-squared temporal-difference error
-$\bigl(y_t - Q_\theta(s_t,a_t)\bigr)^2$.
+The $Q$-function is a multi-layer perceptron: nine inputs (the state of
+Eq.~\eqref{eq:state}), three hidden ReLU layers of $512$, $256$, and $128$ units
+($10\%$ dropout after the first two, switched off during action selection so the
+greedy policy is deterministic), and two linear outputs for
+$Q(s,\textsc{continue})$ and $Q(s,\textsc{stop})$. Training uses the standard DQN
+target~\cite{mnih2015human},
+$y_t = r_t + \gamma\,(1-d_t)\max_{a'}Q_{\bar\theta}(s_{t+1},a')$ with $d_t$ the
+terminal flag, minimising the squared temporal-difference error
+$\bigl(y_t - Q_\theta(s_t,a_t)\bigr)^2$. We use $\varepsilon$-greedy exploration
+($\varepsilon$ decaying once per episode from $1.0$ to $0.05$), a replay buffer of
+$200{,}000$ transitions, mini-batches of $64$, Adam at learning rate $10^{-4}$,
+discount $\gamma = 0.997$, and a target network synced every $2{,}000$ gradient
+steps.
 
 \subsection{Dataset, Oracle Labels, and Data Split}
 \label{sec:dataset}
 
-We build our experiments on QSimBench~\cite{qsimbench}, an open execution-level
-benchmark suite for quantum software engineering. Unlike benchmarks that ship
-only static circuit definitions and leave execution to the user, QSimBench
-provides more than 20 million \emph{precomputed shot-level traces}: for each
-combination of algorithm, circuit size, and backend it stores the actual sequence
-of measured outcomes of a full $\mathcal{B}=20{,}000$-shot execution. This lets us
-replay realistic, noisy executions on the CPU, deterministically and at no
-quantum-hardware cost, which is exactly what makes a large and reproducible study
-of stopping policies feasible. The suite spans many algorithms (e.g.\ dj, qaoa,
-qft, vqe, qnn, random), circuit sizes from $4$ to $14$ qubits, and IBM noisy
-backend simulators (\texttt{fake\_fez}, \texttt{fake\_kyiv},
-\texttt{fake\_marrakesh}, \texttt{fake\_sherbrooke}, \texttt{fake\_torino}). Each
-problem instance is a triplet (algorithm, size, backend); its Oracle label
-$n^{\star}$ is precomputed once via Eq.~\eqref{eq:oracle}.
+We build on QSimBench~\cite{qsimbench}, an execution-level benchmark for quantum
+software engineering. Rather than shipping only circuit definitions, it provides
+more than 20 million \emph{precomputed shot-level traces}: for each (algorithm,
+size, backend) it stores the actual outcome sequence of a full
+$\mathcal{B}=20{,}000$-shot run. We can therefore replay realistic noisy
+executions on the CPU, deterministically and at no hardware cost, which is what
+makes a large, reproducible study of stopping policies possible. The suite spans
+many algorithms (e.g.\ dj, qaoa, qft, vqe, qnn, random), sizes from $4$ to $14$
+qubits, and five IBM noisy backend simulators (\texttt{fake\_fez},
+\texttt{fake\_kyiv}, \texttt{fake\_marrakesh}, \texttt{fake\_sherbrooke},
+\texttt{fake\_torino}). Each instance is a (algorithm, size, backend) triplet
+whose Oracle label $n^{\star}$ is precomputed once via Eq.~\eqref{eq:oracle}.
 
-We split the available instances once, without overlap, into three roles. A
-\emph{training} pool the agent learns from, a \emph{validation} pool used only to
-select the model (Section~\ref{sec:setup}), and a \emph{test set} that is held out
-and never seen during training or model selection. For a fair, leakage-free
-comparison with the state of the art, the test set is fixed to the $36$ benchmark
-traces used in the evaluation of a recent study~\cite{bisicchia2026shots}
-(a balanced set of \emph{small}, $n<10$, and \emph{big}, $n\ge10$, circuits); the
-remaining instances (after excluding the \texttt{grover-noancilla} variants) form
-the training/validation pool. The study as a whole is large: training runs over
-many episodes, each touching a different instance, and every test instance is then
-replayed many times, so the figures we report aggregate a substantial number of
-independent circuit executions rather than single runs. Because outcomes are
-sampled stochastically, even a fixed (deterministic, argmax) policy produces a
-different trajectory on each run, which is why we report mean$\pm$std behaviour
+We split the instances once, without overlap, into three roles: a \emph{training}
+pool the agent learns from, a \emph{validation} pool used only for model selection
+(Section~\ref{sec:setup}), and a \emph{test set} never seen during either. For a
+leakage-free comparison with the state of the art, the test set is fixed to the
+$36$ benchmark traces used by a recent study~\cite{bisicchia2026shots} (a balanced
+mix of \emph{small}, $n<10$, and \emph{big}, $n\ge10$, circuits); the rest, after
+dropping the \texttt{grover-noancilla} variants, form the training/validation
+pool. Every number we report aggregates many independent executions: training
+touches a different instance each episode, and each test instance is replayed many
+times. Because outcomes are sampled stochastically, even a fixed argmax policy
+takes a different trajectory each run, so we report mean$\pm$std behaviour
 (Section~\ref{sec:setup}).
 
-A practical challenge is the heavy skew of the available instances toward
-\emph{small} circuits that converge with few shots. We address this with a
-configurable training distribution (\emph{AgentType}): the \textsc{generic} agent
-studied here trains on a balanced 50/50 mix of small ($n<10$) and big ($n\ge10$)
-problems, so it is exposed to the full spectrum of convergence behaviours.
+The available instances are heavily skewed toward \emph{small} circuits that
+converge in few shots. To counter this, the \textsc{generic} agent studied here
+trains on a balanced 50/50 mix of small ($n<10$) and big ($n\ge10$) problems, so
+it sees the full range of convergence behaviours.
 
 \section{Development and Experimental Setup}
 \label{sec:setup}
@@ -792,10 +731,10 @@ the perfect policy $y=x$.}
 We compare the learned policy against five reference methods on the identical 36
 traces at $\delta=0.10$: the three best online \textsc{IncrementalExecution}
 configurations (\mbox{Inc-TVD}, \mbox{Inc-Hell}, \mbox{Inc-JS}) and the two
-a-priori bounds (Weissman, Hoeffding)~\cite{bisicchia2026shots}. The aggregate
-mean absolute deviation from the Oracle is reported in
-Table~\ref{tab:aggregate}, and the full per-trace breakdown in
-Tables~\ref{tab:pertrace-small}--\ref{tab:pertrace-large}.
+a-priori bounds (Weissman, Hoeffding)~\cite{bisicchia2026shots}. The full
+per-trace breakdown is given in
+Tables~\ref{tab:pertrace-small}--\ref{tab:pertrace-large}; we summarise the
+aggregate comparison in prose below.
 
 \input{tables_generated}
 

@@ -1,6 +1,6 @@
 # HANDOFF — DRL for Quantum Circuit Shot Allocation
 
-_Last updated: 2026-07-06_
+_Last updated: 2026-07-07_
 
 ## Goal
 A DQN agent decides **when to stop** executing quantum-circuit shots so its shot count hugs the
@@ -30,7 +30,40 @@ service** (an intermediary gateway between the user and the quantum cloud).
 
 ---
 
-## Current progress (this session, 2026-07-06)
+## Current progress (latest session, 2026-07-07)
+
+### Paper trimming/de-formalising pass — per an explicit user list. All done, all in `paper/`.
+No results numbers were touched; `make_tables.py` was **not** re-run (see warning #1 below).
+Structural checks pass: braces balanced (495/495), all environments matched, figures 4↔4,
+no dangling `\ref` after the removals; `make_tables.py` still `py_compile`s. **Not compiled**
+(no LaTeX toolchain here — user must build elsewhere to check page count/overflow).
+
+- **Abstract opening shortened** — the first three sentences ("Quantum algorithms are
+  executed…tailored to specific algorithm families.") condensed into three tighter ones.
+- **Keywords reduced** — removed **Deep Q-Network** and **NISQ**. **Kept "Shot Allocation"**
+  (core topic + in the title); user had only flagged it as a "maybe". Now: Quantum Computing,
+  Quantum Software Engineering, Service-Oriented Computing, Shot Allocation, Deep RL. *(If the
+  user wants it even shorter, Shot Allocation is the next to drop.)*
+- **Contributions** — contribution 1 now ends by noting we **package and release the service as
+  a deployable REST API** behind a single execution endpoint (xref Sections 3 and 3.2).
+- **Figure 2 (`fig:arch`, the training-loop diagram) REMOVED** — deleted the whole TikZ block and
+  cleaned its **three** `\ref{fig:arch}` mentions (3.1 intro, Fig. 1 caption, "Inside the
+  service" paragraph). Agent/environment/Oracle prose kept. (This was Tier-1 of the page-cut plan.)
+- **Sections 3.4–3.7 de-formalised & shortened** — State Space, Actions/Reward, Network, Dataset
+  rewritten to be shorter and less formal, keeping **every equation, hyperparameter, and number**
+  intact and matching the paper's tone.
+- **Aggregate table (`tab:aggregate`) REMOVED** from `tables_generated.tex`. Because that file is
+  auto-generated, I **also removed the table-emitting block from `make_tables.py`** (kept the
+  aggregate computations → still printed to console) so regeneration won't reintroduce it. The
+  dangling `Table~\ref{tab:aggregate}` in Results now reads "…summarise the aggregate comparison
+  in prose below" — those numbers already appear verbatim in the "Two findings stand out"
+  paragraph, so nothing is lost.
+- **Figures remaining** (4): Fig. 1 gateway (`fig:service`), REST API listing (`fig:api`),
+  dashboard a/b (`fig:dashboard`), agent-vs-Oracle scatter (`fig:scatter`).
+
+---
+
+## Prior progress (session 2026-07-06)
 
 ### A. Service-oriented paper editing pass (`paper/paper.tex`, `paper/references.bib`)
 A large edit pass per an explicit user list. All done:
@@ -151,7 +184,11 @@ Paper is currently **~20 pp**, must be **15**. Gave the user a prioritised trim 
 2. **Wire `make_tables.py` to the new per-δ folders** (`generic-enhanced-{δ}/multirun_eval-*.csv`)
    and to `parse_sota("0.05")` / `"0.25"`, so comparison tables regenerate per δ. Bump `N_EVAL_RUNS`
    (currently **1**) to ≥10 for the mean±std the paper's reproducibility note promises.
-3. **Cut the paper to 15 pp** using the Tier plan above (only once the user OKs which parts go).
+3. **Cut the paper to 15 pp** using the Tier plan in section D below. **Partly done (2026-07-07):**
+   Fig. 2 (training-loop diagram) removed, aggregate table removed, and Sections 3.4–3.7 trimmed.
+   Still available from the plan: move the two **per-trace tables** to an appendix/repo (biggest win,
+   ~2pp), compress 3.6 hyperparams further, trim 2.3 RL/DQN background, fold **Threats to validity**
+   into **Limitations**. Re-measure page count after a real build before cutting more.
 4. **Reconcile the stale results numbers** once the user supplies his intended CSV; then re-check the
    Results/Discussion/Limitations prose (the safety-first / "≤200 undershoot" narrative may need
    softening — see the qft-12/14 large undershoots in the current CSV).

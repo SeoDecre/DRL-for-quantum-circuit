@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="888" height="508" font-family="monospace" font-size="13">
+<rect width="888" height="508" fill="#fafafa"/>
+<text x="444" y="20" font-size="14" fill="#37474f" text-anchor="middle">Agent: GENERIC  |  Reward: HARD_ASYMMETRIC  |  Split: SIZE (size &lt; 10)</text>
+<line x1="16" y1="28" x2="872" y2="28" stroke="#ccc"/>
+<text x="16" y="50" font-size="16" font-weight="bold" fill="#2e7d32">EASY (size &lt; 10)  [18 problems]</text>
+<text x="452" y="50" font-size="16" font-weight="bold" fill="#c62828">HARD (size &gt;= 10)  [18 problems]</text>
+<line x1="0" y1="60" x2="888" y2="60" stroke="#bbb"/>
+<text x="16" y="80" fill="#333">      dj  q=4    fake_fez            oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="102" fill="#333">      dj  q=4    fake_torino         oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="124" fill="#333">      dj  q=8    fake_fez            oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="146" fill="#333">      dj  q=8    fake_marrakesh      oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="168" fill="#333">    qaoa  q=4    fake_sherbrooke     oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="190" fill="#333">    qaoa  q=6    fake_marrakesh      oracle=   100  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="212" fill="#333">    qaoa  q=8    fake_kyiv           oracle=   300  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="234" fill="#333">    qaoa  q=8    fake_sherbrooke     oracle=   350  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="256" fill="#333">     qft  q=6    fake_fez            oracle=   250  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="278" fill="#333">     qft  q=6    fake_torino         oracle=   200  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="300" fill="#333">     qft  q=8    fake_fez            oracle=   650  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="322" fill="#333">     qft  q=8    fake_torino         oracle=   650  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="344" fill="#333">     qnn  q=8    fake_fez            oracle=   500  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="366" fill="#333">     qnn  q=8    fake_kyiv           oracle=   650  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="388" fill="#333">  random  q=6    fake_fez            oracle=   150  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="410" fill="#333">  random  q=8    fake_fez            oracle=   550  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="432" fill="#333">     vqe  q=6    fake_kyiv           oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="16" y="454" fill="#333">     vqe  q=8    fake_kyiv           oracle=    50  <tspan fill="#2e7d32" font-weight="bold">[EASY]</tspan></text>
+<text x="452" y="80" fill="#333">      dj  q=10   fake_fez            oracle=    50  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="102" fill="#333">      dj  q=10   fake_torino         oracle=    50  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="124" fill="#333">      dj  q=14   fake_fez            oracle=    50  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="146" fill="#333">      dj  q=14   fake_marrakesh      oracle=   100  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="168" fill="#333">    qaoa  q=10   fake_sherbrooke     oracle=  1300  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="190" fill="#333">    qaoa  q=12   fake_marrakesh      oracle=  1500  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="212" fill="#333">    qaoa  q=14   fake_kyiv           oracle=  4700  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="234" fill="#333">    qaoa  q=14   fake_sherbrooke     oracle=  5950  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="256" fill="#333">     qft  q=12   fake_fez            oracle=  6800  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="278" fill="#333">     qft  q=12   fake_torino         oracle=  6650  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="300" fill="#333">     qft  q=14   fake_fez            oracle= 12700  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="322" fill="#333">     qft  q=14   fake_torino         oracle= 12650  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="344" fill="#333">     qnn  q=14   fake_fez            oracle= 12100  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="366" fill="#333">     qnn  q=14   fake_kyiv           oracle= 12550  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="388" fill="#333">  random  q=12   fake_fez            oracle=  6650  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="410" fill="#333">  random  q=14   fake_fez            oracle= 12500  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="432" fill="#333">     vqe  q=12   fake_kyiv           oracle=    50  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+<text x="452" y="454" fill="#333">     vqe  q=14   fake_kyiv           oracle=   450  <tspan fill="#c62828" font-weight="bold">[HARD]</tspan></text>
+</svg>

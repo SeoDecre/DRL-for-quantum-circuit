@@ -3,24 +3,6 @@
 
 \begin{table}[t]
 \centering
-\caption{Mean absolute deviation from the a-posteriori Oracle ($\delta=0.10$) over the 36 benchmark traces, for the proposed DRL agent and the five reference methods. Lower is better.}
-\label{tab:aggregate}
-\begin{tabular}{lc}
-\toprule
-Method & Mean $|$shots $-$ Oracle$|$ \\
-\midrule
-\textbf{DRL agent (ours)} & 2{,}049 \\
-Inc-TVD \cite{bisicchia2026shots}   & \textbf{871} \\
-Inc-Hellinger \cite{bisicchia2026shots} & 2{,}706 \\
-Inc-JS \cite{bisicchia2026shots}    & 3{,}336 \\
-Weissman bound \cite{weissman2003inequalities} & $1.78e{+}5$ \\
-Hoeffding bound \cite{hoeffding1963} & $1.28e{+}10$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[t]
-\centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Per-trace shot counts on the \emph{small} circuits ($n<10$): a-posteriori Oracle, the proposed DRL agent (mean over evaluation runs), and the online Inc-* policies / a-priori Weissman bound of the reference framework~\cite{bisicchia2026shots} at $\delta=0.10$.}
