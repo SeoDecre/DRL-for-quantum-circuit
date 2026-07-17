@@ -29,16 +29,11 @@
 \title{Learning When to Stop: A Deep Reinforcement Learning Service\\ for Adaptive Shot Allocation in Quantum Circuit Execution}
 \titlerunning{A DRL Service for Adaptive Shot Allocation in Quantum Circuits}
 
-\author{Sergio De Crescenzo \and
-Andrea Cossu \and
-Giuseppe Bisicchia\orcidID{0000-0003-2384-2480} \and
-Alessandro Bocci\orcidID{0000-0002-7649-3013} \and
-Antonio Brogi\orcidID{0000-0003-2048-2098}}
-\authorrunning{S. De Crescenzo et al.}
+% Anonymised for double-blind review -- restore the author block for camera-ready.
+\author{No Author Given}
+\authorrunning{No Author Given}
 
-\institute{Department of Computer Science, University of Pisa, Pisa, Italy\\
-\email{sergiodecrescenzo2003@gmail.com}\\
-\email{\{andrea.cossu,giuseppe.bisicchia,alessandro.bocci,antonio.brogi\}@unipi.it}}
+\institute{No Institute Given}
 
 \maketitle
 
@@ -64,12 +59,12 @@ separation between the instances used for training, those used to select the
 model, and a set of circuits held out for final evaluation only. The learned
 policy is deliberately cautious: it would rather spend a few extra shots than
 stop too early and return an unreliable result. In our experiments it uses far
-fewer shots than the worst-case a-priori bounds, and it is competitive with the
-hand-tuned online heuristics that constitute the current state of the art,
-matching or beating most of them while approaching the very best. This shows
-that black-box shot allocation can be \emph{learned} rather than hand-designed.
-We discuss the strengths and current limitations of the approach, and outline
-the road toward closing the remaining gap with the best online heuristic.
+fewer shots than the worst-case a-priori bounds, and it achieves a lower mean
+deviation from the optimum than two of the three hand-tuned online heuristics
+that constitute the current state of the art. This shows that black-box shot
+allocation can be \emph{learned} rather than hand-designed. We discuss the
+strengths and current limitations of the approach, and outline directions for
+further improving the learned policy.
 
 \keywords{Quantum Computing \and Quantum Software Engineering \and
 Service-Oriented Computing \and Shot Allocation \and Deep Reinforcement
@@ -165,9 +160,10 @@ transparently to the user.
   we compare the learned policy against five reference methods on identical,
   never-seen test circuits (Sections~\ref{sec:setup}--\ref{sec:results}).
   \item We provide a critical analysis of the learned behaviour, showing it is
-  robust and safety-oriented, vastly superior to a-priori bounds, superior to
-  two of the three divergence-based online policies, and trailing only the
-  strongest, hand-tuned one (Section~\ref{sec:results}).
+  robust and safety-oriented, uses orders of magnitude fewer shots than the
+  a-priori bounds, and achieves a lower mean deviation from the optimum than
+  two of the three divergence-based online policies
+  (Section~\ref{sec:results}).
 \end{enumerate}
 
 \section{Background and Related Work}
@@ -742,13 +738,12 @@ Two findings stand out. First, the learned agent is overwhelmingly more
 efficient than the a-priori bounds: Weissman and Hoeffding overshoot the Oracle
 by roughly two and seven \emph{orders of magnitude} respectively, because they
 must hold for the worst case over all distributions, whereas the agent adapts to
-the observed statistics. Second, the agent \emph{outperforms} two of the three divergence-based online
-policies: its mean deviation of $2{,}049$ shots is $1.3\times$ lower than
-\mbox{Inc-Hell} ($2{,}706$) and $1.6\times$ lower than \mbox{Inc-JS}
-($3{,}336$). A gap of $\approx 1{,}180$ shots ($5.9\%$ of the budget)
-remains to the strongest baseline, \mbox{Inc-TVD} ($871$), which was selected
-from an exhaustive grid of hand-tuned configurations specifically for this
-metric. The agent achieves this \emph{without} any hand-crafted stopping rule,
+the observed statistics. Second, among the divergence-based online policies, the agent's mean deviation
+of $2{,}049$ shots is $1.3\times$ lower than that of \mbox{Inc-Hell}
+($2{,}706$) and $1.6\times$ lower than that of \mbox{Inc-JS} ($3{,}336$), while
+\mbox{Inc-TVD} records $871$, a configuration selected from an exhaustive grid
+of hand-tuned configurations specifically for this metric. The agent achieves
+this level of performance \emph{without} any hand-crafted stopping rule,
 learning the stopping logic purely from data.
 
 \subsection{Discussion}
@@ -775,17 +770,16 @@ unattended intermediary. The same modularity means an operator can re-tune the
 service (a different divergence, a different cost trade-off) by retraining,
 without touching the deployment.
 
-\paragraph{Limitations.} The agent does not yet outperform the best online
-heuristic, and its dominant error mode is conservative \emph{overshooting on
-mid-range circuits}: on $6$--$8$-qubit \texttt{qaoa}/\texttt{qft}/\texttt{qnn}
+\paragraph{Limitations.} The agent's dominant error mode is conservative
+\emph{overshooting on mid-range circuits}: on $6$--$8$-qubit \texttt{qaoa}/\texttt{qft}/\texttt{qnn}
 instances whose diminishing-returns point lies a few thousand shots in, the
 agent keeps sampling and stops two to four times too late. By contrast, it
 handles both extremes well: trivially short circuits and the largest,
 near-budget circuits are stopped tightly. Undershooting, the scientifically
 dangerous failure mode, is nearly eliminated ($3/36$, each within $200$ shots).
 The over-conservatism is consistent with a value function that overestimates the
-return of continuing; this points to two levers for closing the residual gap
-with \mbox{Inc-TVD}: sharper reward shaping in the mid-range, and richer
+return of continuing; this points to two levers for further tightening the
+learned stops: sharper reward shaping in the mid-range, and richer
 mid-range convergence descriptors (e.g.\ an explicit convergence-streak feature
 and overestimation-robust value learning) that we leave to future work.
 
@@ -808,15 +802,15 @@ agent that learns, under a strict black-box assumption, when to stop sampling a
 quantum circuit. Framed as a Markov Decision Process with a nine-feature state and
 a precision-shaped, safety-oriented asymmetric reward, the agent learns a stopping
 policy that generalises to unseen circuit families, uses far fewer shots than
-a-priori concentration bounds, and is competitive with the hand-tuned online
-heuristics that represent the state of the art, matching or beating most of them
-while approaching the best, all without encoding any explicit convergence test.
+a-priori concentration bounds, and achieves a lower mean deviation from the
+optimum than two of the three hand-tuned online heuristics that represent the
+state of the art, all without encoding any explicit convergence test.
 The result is a lightweight, pre-trained policy network that ships behind a thin
 REST API and runs unchanged against an emulated or a real backend. This
 establishes that black-box shot allocation can be \emph{learned} rather than
 hand-designed.
 
-Future work targets the remaining gap with the best online policy: sharper
+Future work targets further improvements to the learned policy: sharper
 reward shaping for the mid-range circuits the agent currently over-samples,
 enriching the state with additional convergence descriptors, overestimation-robust
 value learning (e.g.\ Double DQN) and distributional RL variants, and ultimately

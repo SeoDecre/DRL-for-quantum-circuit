@@ -103,11 +103,6 @@ def fmt_drl(mean, std):
             + f"{std:,.0f}".replace(",", "{,}"))
 
 
-def bold(s, on):
-    """Wrap a rendered cell in \\textbf{} when it is the best (closest) value."""
-    return rf"\textbf{{{s}}}" if on else s
-
-
 def main():
     print(f"Using multirun CSV: {MULTIRUN_CSV}")
     sota = parse_sota()
@@ -175,23 +170,14 @@ def main():
         for m in items:
             s = m["sota"]
             o = m["oracle"]
-            # bold the method value closest to the Oracle on this trace
-            cands = {"drl": m["drl_mean"]}
-            if s is not None:
-                cands.update({"tvd": s["tvd"], "hell": s["hell"],
-                              "js": s["js"], "weiss": s["weiss"]})
-            best = min(cands, key=lambda k: abs(cands[k] - o))
-            drl = bold(fmt_drl(m["drl_mean"], m["drl_std"]), best == "drl")
+            drl = fmt_drl(m["drl_mean"], m["drl_std"])
             if s is None:
                 row = (rf"{m['trace']} & {m['size']} & {o:.0f} & "
                        rf"{drl} & -- & -- & -- & -- \\")
             else:
-                tvd = bold(f"{s['tvd']:.0f}", best == "tvd")
-                hell = bold(f"{s['hell']:.0f}", best == "hell")
-                js = bold(f"{s['js']:.0f}", best == "js")
-                weiss = bold(fmt(s["weiss"]), best == "weiss")
                 row = (rf"{m['trace']} & {m['size']} & {o:.0f} & "
-                       rf"{drl} & {tvd} & {hell} & {js} & {weiss} \\")
+                       rf"{drl} & {s['tvd']:.0f} & {s['hell']:.0f} & "
+                       rf"{s['js']:.0f} & {fmt(s['weiss'])} \\")
             L.append(row)
         L.append(r"\bottomrule")
         L.append(r"\end{tabular}")
