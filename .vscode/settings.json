@@ -1,5 +1,8 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda",
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    // Never auto-save: an open stale buffer would silently overwrite
+    // on-disk edits made outside the editor (e.g. by Claude Code).
+    "files.autoSave": "off"
 }
